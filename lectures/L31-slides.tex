@@ -1,9 +1,9 @@
 \input{configuration}
-\usepackage{multirow}
 
-\title{Lecture 31 --- The Readers-Writers Problem }
+\title{Lecture 31 --- Deadlock Detection \& Recovery }
 
-\author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}\institute{Department of Electrical and Computer Engineering \\
+\author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
+\institute{Department of Electrical and Computer Engineering \\
 	University of Waterloo}
 \date{\today}
 
@@ -15,724 +15,670 @@
 
 \end{frame}
 
-\begin{frame}
-	\frametitle{Reader/Writer Locks}
-	Reads don't interfere with one another so we can let them run in parallel!
 
-	But sometimes writes occur, and nobody can read when this happens.
+\begin{frame}
+	\frametitle{Elementary...}
 
 	\begin{center}
-		\includegraphics[width=0.8\textwidth]{images/groupreading.jpg}
+		\includegraphics[width=0.7\textwidth]{images/jeremy-brett.jpg}
 	\end{center}
-	\hfill Image Credit: Understood.org
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Detecting Deadlock}
+
+	Thus far we have examined several ways to prevent or avoid deadlock, but all of those solutions have come with significant drawbacks or limitations.
+
+	Avoidance analyses are also conservative; they will prevent a request from taking place if there is even a small chance it could lead to a deadlock.
+
+	Perhaps we cannot stop deadlock from happening or cannot live with the performance reduction that avoidance mandates.
+
+	Then the next best thing is to let all resource requests proceed and then determine later if a deadlock exists, and if so, do something about it.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Detecting Deadlock}
+
+	The basic strategy for deadlock detection is like the deadlock avoidance strategy in that it relies on a model of the resource allocation and requests.
+
+	If resources have only a single instance, we may reduce the graph to a simplified version called the \textit{wait-for} graph.
+
+	This removes the resource boxes from the diagram.
+
+	It indicates that a process $P_{i}$ is waiting for process $P_{j}$ rather than for a resource $R_{k}$ that happens to be held by $P_{j}$.
+
+	An edge $P_{i} \rightarrow P_{j}$ exists in the wait-for graph if and only if the resource allocation graph has a request $P_{i} \rightarrow R_{k}$ and an assignment edge $R_{k} \rightarrow P_{j}$
+
 \end{frame}
 
 \begin{frame}
-	\frametitle{Reader/Writer Rules}
+	\frametitle{Wait-For Graph}
 
+	\begin{center}
+		\includegraphics[width=0.75\textwidth]{images/rag-waitfor.png}
+	\end{center}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Cycle Detection}
+
+	Given the wait-for graph, it is trivial for humans to look at this and determine if there is a cycle, but for the computer it takes slightly more work.
+
+	A cycle exists in the wait for graph if and only if a deadlock exists in the system.
+
+	Such cycle detection algorithms tend to have runtime characteristics of $\Theta(n^{2})$ where $n$ is the number of nodes in the graph.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{General Deadlock Detection Algorithm}
+
+	We will use the general deadlock detection algorithm that allows for multiple resources of each type.
+
+	There are $n$ processes numbered $P_{1}$ through $P_{n}$ and $m$ resources.
+
+	Resources are represented by two vectors:\\
+	\quad $E$ -- the existing resource vector.\\
+	\quad $A$ -- the available resource vector.
+
+	If resource $i$ has two instances total and one is currently assigned to a process, $E_{i}$ is 2 and $A_{i}$ is 1.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{General Deadlock Detection Algorithm}
+
+	We need two matrices to represent the current situation of the system.
+
+	The first is $C$, the current allocation.
+
+	Row $i$ of $C$ shows how many of each resource $P_{i}$ has.
+
+	The second matrix is $R$, the request matrix.
+
+	$C_{ij}$ shows the number of instances of resource $j$ that $P_{i}$ has and $R_{ij}$ shows the number of instances of resource $j$ that $P_{i}$ wants.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{General Deadlock Detection Algorithm}
+
+	\begin{multicols}{2}
+		\begin{center}
+			\textsf{Resources in Existence}\\
+			$[E_{1}, E_{2}, ..., E_{m}]$\vspace{5em}
+
+			\textsf{Current Allocations}
+			\[
+				\left[ {\begin{array}{cccc}
+								C_{11} & C_{12} & ... & C_{1m} \\
+								C_{21} & C_{22} & ... & C_{2m} \\
+								\vdots & \vdots &     & \vdots \\
+								C_{n1} & C_{n2} & ... & C_{nm}
+							\end{array} } \right]
+			\]
+		\end{center}
+		\columnbreak
+
+		\begin{center}
+			\textsf{Resources Available}\\
+			$[A_{1}, A_{2}, ..., A_{m}]$\vspace{3em}
+
+			\textsf{Requests}
+			\[
+				\left[ {\begin{array}{cccc}
+								R_{11} & R_{12} & ... & R_{1m} \\
+								R_{21} & R_{22} & ... & R_{2m} \\
+								\vdots & \vdots &     & \vdots \\
+								R_{n1} & R_{n2} & ... & R_{nm}
+							\end{array} } \right]
+			\]
+		\end{center}
+
+	\end{multicols}
+
+	\begin{center}
+		$\sum\limits_{i=1}^n C_{ij} + A_{j} = E_{j}$.
+	\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Less Than? Says Who?}
+
+	There is one more bit of setup before we are ready to run the algorithm.
+
+	The key idea is comparison of vectors, so let us define for notational convenience, the idea of ``less than'' for two vectors.
+
+	We will say that for two vectors $A$ and $B$ of length $m$,  $A \leq B$ means that $A_{i} \leq B_{i}$ for all $i$ from 1 to $m$.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Run, Algorithm, Run}
+
+	All processes are unmarked and the vectors and matrices are populated.
 
 	\begin{enumerate}
-		\item Any number of readers may be in the critical section simultaneously.
-		\item Only one writer may be in the critical section (and when it is, no readers are allowed).
+		\item Search for an unmarked process whose requests can all be satisfied with the available resources in $A$. Mathematically: find a process $P_{i}$ such that row $R_{i} \leq A$.
+		\item If a process is found, add the allocated resources of that process to the available vector and mark the process. Mathematically: $A = A + C_{i}$. Go back to step 1.
+		\item If no process was found in the search of step 1, the algorithm terminates.
 	\end{enumerate}
 
-
-	This is very often how file systems work.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{With Variation}
-
-	This is similar to, but distinct from, the general mutual exclusion problem and the producer-consumer problem.
-
-	Readers do not modify the data (consumers do take things out of the buffer, modifying it).
-
-	If any thread could read or write the shared data structure, we would have to use the general mutual exclusion solution.
-
-	Allowing multiple readers can permit better performance!
-
-	And there are many scenarios where updates are rare but reads are common.
+	At the end, any processes that are not marked are deadlocked.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Readers-Writers Solution 1}
-	Let us keep track of the number of readers at any given time with \texttt{readers}.
+	\frametitle{General Deadlock Detection Algorithm Analysis}
 
-	We will need a way of protecting this variable from concurrent modifications, so there will have to be a binary semaphore \texttt{mutex}.
+	This approach is similar to the banker's algorithm.
 
-	We will also need one further semaphore, \texttt{roomEmpty}.
+	Step 1: look for a process that can run to completion; it will be able to do so because the currently available resources equal or exceed its needs.
 
-	A writer has to wait for the room to be empty (i.e., \texttt{wait} on the \texttt{roomEmpty} semaphore) before it can enter.
+	That process can finish, and when it does so, its currently-held resources are released and available for another process to acquire.
+
+	Step two reflects this by adding the resources it holds to the available set.
+
+	Then another process is selected.
+
+	At the end, either all processes can finish and there is no deadlock, or there is a set of processes (at least two) that are deadlocked.
+
+	This algorithm has a runtime performance characteristic of $\Theta(m \times n^{2})$.
+
+
 \end{frame}
 
-
-
-\begin{frame}[fragile]
-	\frametitle{Readers-Writers Solution 1}
+\begin{frame}
+	\frametitle{Detection of Deadlock Example}
+	System initial state (4 resources, 3 processes):
 
 	\begin{multicols}{2}
-		\textbf{Writer}
-		\begin{verbatim}
-	 1. wait( roomEmpty )
-	 2. [write data]
-	 3. post( roomEmpty )
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-  \end{verbatim}
+		\begin{center}
+			$E = [4, 2, 3, 1]$
+			\[ C =
+				\left[ {\begin{array}{cccc}
+								0 & 0 & 1 & 0 \\
+								2 & 0 & 0 & 1 \\
+								0 & 1 & 2 & 0 \\
+							\end{array} } \right]
+			\]
+		\end{center}
 		\columnbreak
-		\textbf{Reader}
-		\begin{verbatim}
-	 1. wait( mutex )
-	 2. readers++
-	 3. if readers == 1
-	 4.     wait( roomEmpty )
-	 5. end if
-	 6. post( mutex )
-	 7. [read data]
-	 8. wait( mutex )
-	 9. readers--
-	10. if readers == 0
-	11.     post( roomEmpty )
-	12. end if
-	13. post( mutex )
-  \end{verbatim}
+
+		\begin{center}
+			$A = [2, 1, 0, 0]$
+			\[ R =
+				\left[ {\begin{array}{cccc}
+								2 & 0 & 0 & 1 \\
+								1 & 0 & 1 & 0 \\
+								2 & 1 & 0 & 0
+							\end{array} } \right]
+			\]
+		\end{center}
+
 	\end{multicols}
-	\vspace{-2em}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{I'll Take Your Word For It}
+
+If we have started some operation and it is taking too long, we can assume that a deadlock occurred and decide to take action.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/zoidberg.jpg}
+\end{center}
+
+This does mean we might declare a deadlock when there really is none.
+
+One way to implement this is via a watchdog timer.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{When to Detect Deadlock}
+
+	The runtime characteristic of the simple deadlock detection algorithm: $\Theta(n^{2})$.
+
+	The runtime characteristic of the general algorithm was shown as $\Theta(m \times n^{2})$.
+
+	($n$ is the number of processes and $m$ is the number of resources in the system)
+
+	This means that the deadlock detection routine is expensive to execute.
+
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Readers-Writers Solution 1 Analysis}
+	\frametitle{When to Detect Deadlock}
 
-	The first reader that arrives encounters the situation that the room is empty, so it ``locks'' the room (waiting on the \texttt{roomEmpty} semaphore).
+	This prompts a question: how often should the deadlock detection algorithm be run?
 
-	That will prevent writers from entering the room.
+	One strategy is to run it every time a resource is requested.
 
-	Additional readers do not check if the room is empty; they just proceed to enter.
+	Optimization: it should run if a resource request cannot be granted.
 
-	When the last reader leaves the room, it indicates that the room is empty (``unlocking it'' to allow a writer in).
+	Another idea: run it periodically instead.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Readers-Writers Solution 1 Analysis}
+	\frametitle{When to Detect Deadlock}
 
-	This pattern is sometimes called the \alert{light switch}.
+	When to run the deadlock detection algorithm depends on how often we expect deadlock to occur, and how severe a problem it is when deadlock occurs.
+
+	If deadlock happens a lot, checking for deadlock often will make sense.
+
+	If the consequences of a deadlock are severe, it makes sense to check frequently to identify the problem as soon as possible.
+
+	Idea: run it when CPU utilization is low...?
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{We Can Fix This}
 
 	\begin{center}
-		\includegraphics[width=0.6\textwidth]{images/lightswitch.png}
+		\includegraphics[width=\textwidth]{images/recovery.png}
 	\end{center}
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Readers-Writers Solution 1 Analysis}
+	\frametitle{Deadlock Recovery}
 
-	The reader code has that situation that makes us concerned.\\
-	\quad A wait on \texttt{roomEmpty} inside a critical section controlled by \texttt{mutex}.
+	Once a deadlock has been detected, a system can recover from that deadlock by ``breaking'' the deadlock.
 
-	With a bit of reasoning, we can convince ourselves that there is no deadlock.
+	These are called recovery strategies and they are ways the system may automatically deal with the problem.
 
-	A reader waits on \texttt{roomEmpty} only if a writer is currently in its critical section.
+	It is possible to have a manual form of deadlock recovery, where an operator is notified and that person is responsible for sorting out the problem.
 
-	As long as the write operation takes finite time, eventually the writer will post the \texttt{roomEmpty} semaphore and the threads can continue.
-
-	Deadlock is not a problem.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Readers-Writers Solution 1 Analysis}
-
-	There is, however, a second problem that we need to be concerned about.
-
-	Suppose some readers are in the room, and a writer arrives.
-
-	The writer must wait until all the readers have left the room.
-
-	When each of the readers is finished, it exits the room.
-
-	In the meantime, more readers arrive and enter the room.
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Readers-Writers Solution 1 Analysis}
-
-	So even though each reader is in the room for only a finite amount of time, there is never a moment when the room has no readers in it.
-
-	This undesirable situation is not deadlock, because the reader threads are not stuck, but the writer (and any subsequent writers) is (are) going to wait forever.
-
-	This is a situation called \alert{starvation}: a thread never gets a chance to run.
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Starvation}
-
-	Recall criterion 3 of properties we want in any mutual exclusion solution:\\
-	\quad It must not be possible for a thread to be delayed indefinitely.
-
-	This problem is just as bad as deadlock in that if it is discovered, it eliminates a proposed solution as an acceptable option.
-
-	Even though starvation might only be an unlikely event.
-
-	We must therefore improve on this solution such that there is no longer the possibility that a writer starves.
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Readers-Writers Solution 2}
-
-	When a writer arrives, any readers should be permitted to finish their read.\\
-	\quad No new readers should be allowed to start reading.
-
-	Eventually, all the readers currently in the critical section will finish.
-
-	The writer will get a turn, because the room is empty.
-
-	When the writer is done, all the readers that arrived after the writer will be able to enter.
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Readers-Writers Solution 2}
-	\begin{multicols}{2}
-		\textbf{Writer}
-		\begin{verbatim}
-	 1. wait( turnstile )
-	 2. wait( roomEmpty )
-	 3. [write data]
-	 4. post( turnstile )
-	 5. post( roomEmpty )
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-	 
-  \end{verbatim}
-		\columnbreak
-		\textbf{Reader}
-		\begin{verbatim}
-	 1. wait( turnstile )
-	 2. post( turnstile )
-	 3. wait( mutex )
-	 4. readers++
-	 5. if readers == 1
-	 6.     wait( roomEmpty )
-	 7. end if
-	 8. post( mutex )
-	 9. [read data]
-	10. wait( mutex )
-	11. readers--
-	12. if readers == 0
-	13.     post( roomEmpty )
-	14. end if
-	15. post( mutex )
-  \end{verbatim}
-	\end{multicols}
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Readers-Writers Solution 2 Analysis}
-
-	Does this solution satisfy our goals of avoidance of deadlock and starvation?
-
-	Starvation is fairly easy to assess: the first attempt at the solution had one scenario leading to starvation and this solution addresses it.
-
-	You should be able to convince yourself that the solution as described cannot starve the writers or readers.
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Readers-Writers Solution 2 Analysis}
-
-	On to deadlock: the reader code is minimally changed from before
-
-	The writer has that dangerous pattern: two waits.
-
-	If the writer is blocked on the \texttt{roomEmpty} semaphore, no readers or writers could advance past the turnstile and no writers.
-
-	If the writer is blocked on that semaphore, there are readers in the room.
-
-	The readers will individually finish and leave (their progress is not impeded).
-
-	So the room will eventually become empty; the writer will be unblocked.
+	The manual method needs no further discussion.
 
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Readers-Writers Solution 2 Analysis}
+	\frametitle{Recovery Strategies}
 
-	Note that this solution does not give writers any particular priority: when a writer exits it posts on \texttt{turnstile} and that may unblock a reader or a writer.
+	There are several strategies that we could apply.
 
-	If it unblocks a reader, a whole bunch of readers may enter before the next writer is unblocked and locks the turnstile again.
+	They can result in data loss, delays in completion, other problems...
 
-	That may or may not be desirable, depending on the application.
+	Ideally we would like to break the deadlock with as little disruption as possible, so the strategies that rely on selection of victims should choose carefully.
 
-	In any event, it does mean it is possible for readers to proceed even if a writer is queued.
+	These strategies are not mutually exclusive.
 
-	If there is a need to give writers priority, there are techniques for doing so.
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Business Class Passengers Board in Zone 1}
+	\frametitle{Here's One Idea}
 
 	\begin{center}
-		\includegraphics[width=0.9\textwidth]{images/priority-boarding.jpg}
+		\includegraphics[width=\textwidth]{images/oceans-eleven.jpeg}
 	\end{center}
-	\hfill Image Credit: Tag Along Travel
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Business Class Passengers Board in Zone 1}
-
-	Let's modify the solution so that writers have priority over readers.
-
-	We will probably want to break up the \texttt{roomEmpty} semaphore into \texttt{noReaders} and \texttt{noWriters}.
-
-	A reader in the critical section should hold the \texttt{noReaders} semaphore and a writer should hold \texttt{noWriters} and \texttt{noReaders}.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Writer Priority}
-
-	\begin{multicols}{2}
-		\textbf{Writer}\vspace{-1em}
-		\begin{verbatim}
-     1. wait( writeMutex )
-     2. writers++
-     3. if writers == 1
-     4.     wait( noReaders )
-     5. end if
-     6. post( writeMutex )
-     7. wait ( noWriters )
-     8. [write data]
-     9. post( noWriters ) 
-    10. wait( writeMutex )
-    11. writers--
-    12. if writers == 0
-    13.    post( noReaders )
-    14. end if
-    15. post( writeMutex )     
-  \end{verbatim}
-		\columnbreak
-		\textbf{Reader}\vspace{-2em}
-		\begin{verbatim}
-     1. wait( noReaders )
-     2. wait( readMutex )
-     3. readers++
-     4. if readers == 1
-     5.    wait( noWriters )
-     6. end if
-     7. post( readMutex )
-     8. post( noReaders )
-     9. [read data]
-    10. wait( readMutex )
-    11. readers--
-    12. if readers == 0
-    13.     post( noWriters )
-    14. end if
-    15. post( readMutex )
-\end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Analysis: Writer Priority}
+	\frametitle{Robbery}
 
-	Yikes! The complexity for the writer increased dramatically.
+	The strategy of ``robbery'' is just a humorous way of saying preemption.
 
-	The reader is not all that different than it was before.
+	This is virtually identical to the discussion of deadlock prevention.\\
+	\quad But it happens  only when deadlock is detected.
 
-	The writer now is to some extent the mirror image of the reader.
+	The operating system needs to choose a victim to rob...
+
+	The resource should be an appropriate type to be preempted!
+
 
 \end{frame}
-
 
 \begin{frame}
-	\frametitle{Too Much Typing?}
-
-	Using the pseudocode as above, we can implement the readers-writers behaviour in a given program using only semaphore and mutex constructs.
-
-	But in the pthread library there is support for readers-writers lock types, meaning we don't have to reinvent the wheel.
-
-	The type for the lock is \texttt{pthread\_rwlock\_t}.
-
-\end{frame}
+	\frametitle{Robbery}
 
 
-\begin{frame}[fragile]
-	\frametitle{RW Lock Syntax: Init, Destroy}
+	Suppose $P_{1}$ has a resource $R_{1}$ and needs $R_{2}$, while $P_{2}$ has $R_{2}$ and needs $R_{1}$.
 
-	\begin{lstlisting}[language=C]
-pthread_rwlock_init( pthread_rwlock_t * rwlock, pthread_rwlockattr_t * attr )
-\end{lstlisting}
+	The OS may block $P_{2}$ and take away $R_{2}$ from $P_{2}$ and allow $P_{1}$ to have it.
 
-	\texttt{rwlock}: the lock to initialize.
-
-	\texttt{attr}: the attributes (\texttt{NULL} for defaults is fine.)
-
-
-	\begin{lstlisting}[language=C]
-pthread_rwlock_destroy( pthread_rwlock_t * rwlock )
-\end{lstlisting}
-
-	\texttt{rwlock}: the lock to destroy.
-
-
-	Both of these are exactly like the regular mutex.
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{RW Lock Syntax: Locking}
-
-	\begin{lstlisting}[language=C]
-pthread_rwlock_rdlock( pthread_rwlock_t * rwlock )
-pthread_rwlock_tryrdlock( pthread_rwlock_t * rwlock )
-pthread_rwlock_wrlock( pthread_rwlock_t * rwlock )
-pthread_rwlock_trywrlock( pthread_rwlock_t  *  rwlock )
-\end{lstlisting}
-
-	We can acquire a read lock, or a write lock.
-
-	Pretty self-explanatory, which is which and when you use what.
-
-	For each of those there is an associated trylock function.
-
-	All four functions take one argument: \texttt{rwlock}, the lock.
+	After that resource becomes available again, it is returned to $P_{2}$.
 
 
 \end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{RW Lock Syntax: Unlock}
-
-	\begin{lstlisting}[language=C]
-pthread_rwlock_unlock( pthread_rwlock_t * rwlock )
-\end{lstlisting}
-
-	Unlock works just like the regular mutex unlock.
-
-	We do not need to specify what kind of lock we are releasing.
-
-\end{frame}
-
 
 \begin{frame}
-	\frametitle{Writer Priority?}
-
-	As for whether readers or writers get priority, the specification says this is implementation defined.
-
-	If possible, for threads of equal priority, a writer takes precedence over a reader.
-
-	But your system may vary.
-
-
-\end{frame}
-
-
-
-\begin{frame}
-	\frametitle{Mine, Mine, Mine!}
-
-	In theory, the same thread may lock the same rwlock $n$ times.
-
-	Just remember to unlock it $n$ times as well.
-
-	Readers get priority? Implementation defined.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Without RW Locks}
-
-	\begin{multicols}{2}
-		\begin{lstlisting}[language=C]
-int readers;
-pthread_mutex_t mutex;
-sem_t roomEmpty;
-
-void init( ) {
-  readers = 0;
-  pthread_mutex_init( &mutex, NULL );
-  sem_init( &roomEmpty, 0, 1 );
-}
-
-void cleanup( ) {
-  pthread_mutex_destroy( &mutex );
-  sem_destroy( &roomEmpty );
-}
-\end{lstlisting}
-
-		\columnbreak
-
-		\begin{lstlisting}[language=C]
-void* writer( void* arg ) {
-  sem_wait( &roomEmpty );
-  write_data( arg );
-  sem_post( &roomEmpty );
-}
-
-void* reader( void* read ) {
-  pthread_mutex_lock( &mutex );
-  readers++;
-  if ( readers == 1 ) {
-    sem_wait( &roomEmpty );
-  }
-  pthread_mutex_unlock( &mutex );
-  read_data( arg );
-  pthread_mutex_lock( &mutex );
-  readers--;
-  if ( readers == 0 ) {
-    sem_post( &roomEmpty );
-  }
-  pthread_mutex_unlock( &mutex );
-}
-\end{lstlisting}
-
-	\end{multicols}
-
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{With RW Locks}
-
-	\begin{multicols}{2}
-		\begin{lstlisting}[language=C]
-pthread_rwlock_t rwlock;
-
-void init( ) {
-  pthread_rwlock_init( &rwlock, NULL );
-}
-
-void cleanup( ) {
-  pthread_rwlock_destroy( &rwlock );
-}
-\end{lstlisting}
-
-		\columnbreak
-
-		\begin{lstlisting}[language=C]
-void* writer( void* arg ) {
-  pthread_rwlock_wrlock( &rwlock );
-  write_data( arg );
-  pthread_rwlock_unlock( &rwlock );
-}
-
-void* reader( void* read ) {
-  pthread_rwlock_rdlock( &rwlock );
-  read_data( arg );
-  pthread_rwlock_unlock( &rwlock );
-}
-\end{lstlisting}
-
-	\end{multicols}
-
-	Conclusion: don't reinvent the wheel!
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Seek and Destroy}
+	\frametitle{Mass Murder}
 
 	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/seek-and-destroy.jpg}
+		\includegraphics[width=0.65\textwidth]{images/killemall.jpg}
 	\end{center}
-	An extension of the readers-writers problem: the search-insert-delete problem.
 
-	Three kinds of thread: searcher, inserter, deleter.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Mass Murder}
+
+	Terminate (kill) all the processes involved in the deadlock.
+
+	This solution is surprisingly common.
+
+	It is one way to be certain that the deadlock cycle is broken.
+
+	The resources that these processes were holding will become available.
+
+	There is no need to determine a victim: kill 'em all and let root sort them out.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Mass Murder}
+
+	This solution, while easy to implement, may not solve the problem.
+
+	The circumstances that caused the deadlock may occur again.
+
+	If the deadlock were an unlikely situation caused by ``unlucky'' timing then it will probably not recur, or at least, will not recur for some time.
+
+	If $P_{1}$ and $P_{2}$ are deadlocked, however, is it really necessary to kill both?
+
+	If we killed only one, the other could proceed...
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Searcher Rules}
+	\frametitle{Hello, Clarice...}
 
-	\alert{Searchers} merely examine the list; hence they can execute concurrently with each other.
-
-	Searcher threads must call \texttt{void search( void* target )} where the argument to the searcher thread is the element to be found.
-
-	These most closely resemble readers in the readers-writers problem.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Inserter Rules}
-
-	\alert{Inserters} add new items to the end of the list; only one insertion may take place at a time.
-
-	However, one insert can proceed in parallel with any number of searches.
-
-	Inserter threads call \texttt{node* find\_insert\_loc()} to find where to do the insertion.
-
-	Then \texttt{void insert( void* to\_insert, node* after )} where the arguments are the location and the element to be inserted.
-
-	Inserters resemble readers, with restrictions.
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/mikkelsen.jpg}
+	\end{center}
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Deleter Rules}
+	\frametitle{Murder}
 
-	\alert{Deleters} remove items from anywhere in the list. At most one deleter process can access the list at a time.
+	Perhaps instead of killing all processes involved in a deadlock, the operating system chooses to kill processes selectively.
 
-	When the deleter is accessing the list, no inserters and no searchers may be accessing the list.
+	Like preemption, selecting which process is the victim is important.
 
-	Deleter threads call \texttt{void delete( void* to\_delete )}.
+	When the victim is killed, its resources are added to the available set and this will hopefully allow other processes to proceed.
 
-	These resemble writers.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Murder}
+	Run the deadlock detection algorithm again to determine if deadlock still exists.
+
+	If so, this strategy needs to be repeated.
+
+	Repeat until the logjam is broken.
+
+	Presumably kills fewer processes than the ``mass murder'' strategy.
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Let's Get It Done}
+	\frametitle{Next Idea: Back we Go...}
 
-	It turns out we don't need to modify things too much to allow for this third kind of thread.
-
-	We need to keep track of when there are ``no inserters'' and ``no searchers''.
-
-	Plus another mutex to go around the actual insertion...
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/bttf.jpg}
+	\end{center}
 
 \end{frame}
 
 
-\begin{frame}[fragile]
-	\frametitle{Search-Insert-Delete}
-	\begin{lstlisting}[language=C]
-pthread_mutex_t searcher_mutex;
-pthread_mutex_t inserter_mutex;
-pthread_mutex_t perform_insert;
-sem_t no_searchers;
-sem_t no_inserters;
-int searchers;
-int inserters;
+\begin{frame}
+	\frametitle{Time Travel}
 
+	\alert{Rollback}: returning the state of a process to a saved state from an earlier time.
 
-void init( ) {
-  pthread_mutex_init( &searcher_mutex, NULL );
-  pthread_mutex_init( &inserter_mutex, NULL );
-  pthread_mutex_init( &perform_insert, NULL );
-  sem_init( &no_inserters, 0, 1 );
-  sem_init( &no_searchers, 0, 1 );
-  searchers = 0;
-  inserters = 0;
-}
-\end{lstlisting}
-\end{frame}
+	There must be a saved state that was created in advance of a problem. \\
+	\quad Otherwise there is no state to roll back to!
 
-\begin{frame}[fragile]
-	\frametitle{Search-Insert-Delete}
-	\begin{lstlisting}[language=C]
-void* searcher_thread( void *target ) {
-  pthread_mutex_lock( &searcher_mutex );
-  searchers++;
-  if ( searchers == 1 ) {
-    sem_wait( &no_searchers );
-  }
-  pthread_mutex_unlock( &searcher_mutex );
-  
-  search( target );
-  
-  pthread_mutex_lock( &searcher_mutex );
-  searchers--;
-  if ( searchers == 0 ) {
-    sem_post( &no_searchers );
-  }
-  pthread_mutex_unlock( &searcher_mutex );
-}
-\end{lstlisting}
-\end{frame}
+	The saved state is called a \alert{checkpoint} and the act of creating and saving a checkpoint is called \alert{checkpointing}.
 
-\begin{frame}[fragile]
-	\frametitle{Search-Insert-Delete}
-	\begin{lstlisting}[language=C]
-void* deleter_thread( void* to_delete ) {
-  sem_wait( &no_searchers );
-  sem_wait( &no_inserters );
-  
-  delete( to_delete );
-  
-  sem_post( &no_inserters );
-  sem_post( &no_searchers );
-}
-\end{lstlisting}
-\end{frame}
+	Checkpoints may be created periodically or before beginning a particular operation that requires a lot of resources.
 
-\begin{frame}[fragile]
-	\frametitle{Search-Insert-Delete}
-	\begin{lstlisting}[language=C]
-void* inserter_thread( void *to_insert ) {
-  pthread_mutex_lock( &inserter_mutex );
-  inserters++;
-  if ( inserters == 1 ) {
-    sem_wait( &no_inserters );
-  }
-  pthread_mutex_unlock( &inserter_mutex );
-  
-  node * insert_after = find_insert_location( );
-  pthread_mutex_lock( &perform_insert );
-  insert( to_insert, insert_after );
-  pthread_mutex_unlock( &perform_insert );
-  
-  pthread_mutex_lock( &inserter_mutex );
-  inserters--;
-  if ( inserters == 0 ) {
-    sem_post( &no_inserters );
-  }
-  pthread_mutex_unlock( &inserter_mutex );
-}
-\end{lstlisting}
 \end{frame}
 
 \begin{frame}
-\frametitle{Make It Work}
+	\frametitle{Time Travel}
 
-Could you implement Search-Insert-Delete with a \texttt{pthread\_rwlock\_t} despite there being three kinds of thread?
+	A checkpoint contains the memory image, including the call stack, and resource state of a process.
+
+	It is written to disk and will usually persist as long as the process executes.
+
+	You might already be somewhat familiar with the concept of rollbacks if you have used version control software like Subversion (\texttt{svn}) or Git (\texttt{git}).
+
+	Rollbacks are also common in databases.
 
 \end{frame}
+
+\begin{frame}
+	\frametitle{Time Travel}
+
+	Unfortunately, rollback does not always succeed.
+
+	Sometimes moving the process back to an earlier state just moves it a few steps back on the same road that leads to the deadlock.
+
+	Rollback may be attempted a few times before trying another strategy.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Armageddon}
+
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/defcon.jpg}
+	\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Armageddon}
+
+	Armageddon - the end of the world.
+
+	If a deadlock has occurred, sometimes the best thing to do is reboot the system.
+
+	This has a side effect of killing all processes, whether they are stuck or not, but is sometimes the best way to make sure that the system is in a valid state.
+
+	NASA's Spirit rover relies on this strategy if it detects a deadlock.
+
+	Like killing all affected processes, it is easy to implement, but is most disruptive.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Victim Selection}
+
+	If we have to choose a victim process for one of the strategies, e.g., termination, then we need a strategy for which process to choose.
+
+	We could choose randomly: kill a process and hope that that was enough.
+
+	Sometimes this will work, because it breaks the deadlock and the other processes can all proceed.
+
+	In general, however, making an informed decision is better.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{(Don't) Shoot Innocent Bystanders}
+
+	It is not necessary to choose one of the processes involved in the deadlock.
+
+	If $P_{1}$ and $P_{2}$ are deadlocked, $P_{3}$  may have an instance of a resource $P_{1}$ needs.
+
+	Killing $P_{3}$ will allow both $P_{1}$ and $P_{2}$ to proceed.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Victim Selection: An Optimization Problem}
+
+	Define a cost function for choosing each process, evaluate it, choose the lowest.
+
+	Some factors to consider:
+
+	\begin{enumerate}
+		\item The priority of the process.
+		\item How long the process has been executing.
+		\item How long is remaining in execution, if known.
+		\item What resources the process has (number and type).
+		\item Future resource requests, if known.
+		\item Whether the process is user-interactive or in the background.
+		\item How many times, if any, the process has been selected as a victim.
+	\end{enumerate}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Geri and the Atrics}
+
+	Selection routines tend to favour older processes rather than younger ones.
+
+	This is not because older processes vote in higher numbers, but because it tends to be more expensive to restart an older process.
+
+	A process that has been running for a long time, if it is restarted, has to do a lot more work to get to the point where it was terminated than a younger process.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Geri and the Atrics}
+
+	If the oldest process were constantly the one selected, that process itself might never get to run to completion (starvation).
+
+	If the killing process is very aggressive then no tasks run to completion because each process, shortly after becoming the oldest, is killed.
+
+
+	Therefore, young processes tend to be the ones selected.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Keeping Track}
+
+	The final element in the list, keeping track of how many times a process has been victimized, is also there to prevent starvation.
+
+	The selection process very likely produces the same or similar results each time it is run, so it may happen that the same process is selected over and over again.
+
+	It may be advisable to take the number of rollbacks or terminations into account so that no process in particular is starved.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Miscarriages of Justice}
+
+	The deadlock detection algorithm we have chosen tends to be conservative.\\
+	\quad It will err on the side of saying that there is a deadlock.
+
+	The worst case is assumed: that processes take resources and keep them until the end of their execution.
+
+	We might detect a deadlock when there is none.
+
+	We may also, then, kill an innocent process in a system that is not actually deadlocked. Oops!
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{It's Okay to Make Mistakes}
+
+	It turns out that our deadlock detection algorithms do not have to be perfect if we have chosen an appropriate recovery strategy.
+
+	If killing the process and restarting it does not have unexpected side effects, then being selected does not have an impact on the correctness of the program.
+
+	... Only on how long it takes to execute.
+
+	For example, the victim process is a compiler.
+
+	If killed and started again, it takes slightly longer for the compile to finish, but there is no impact on the correctness of the binary.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Lifelock}
+
+\begin{center}
+	\includegraphics[width=0.7\textwidth]{images/lifelock.jpg}
+\end{center}
+
+No, wait, that's not quite correct.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Lifelock}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/zoidberg2.jpg}
+\end{center}
+
+Better.
+
+But we actually wanted to talk about Livelock.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Livelock}
+
+	Ideally, our recovery strategy is effective: some threads continue.
+	
+	Unfortunately, sometimes we just end up at the same impasse again.
+	
+	Deadlock recovery strategies are not the only way to end up in livelock.
+	
+	Imagine the dining philosophers, perfectly synchronized.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Full of Sound and Fury, Signifying Nothing}
+
+	In real life, it is unlikely that $n$ threads executing on a general purpose operating system would achieve this sort of perfect lock-step.
+	
+	Even so, livelock can occur in long-running tasks.
+
+	Problem: this is harder to detect than deadlock. Why?
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Full of Sound and Fury, Signifying Nothing}
+
+	In deadlock, threads are known to be blocked and analysis tools (e.g., a debugger) can tell you at what statement those threads are blocked.
+	
+	With livelock, it seems like the threads are running and working, but somehow no work is getting done. 
+
+	For this reason, a well-designed recovery strategies may have some sort of limit on the number of retries...
+
+\end{frame}
+
 
 
 \end{document}

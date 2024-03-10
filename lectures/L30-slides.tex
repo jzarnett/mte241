@@ -1,6 +1,6 @@
 \input{configuration}
 
-\title{Lecture 30 --- The Producer-Consumer Problem }
+\title{Lecture 30 --- Deadlock Avoidance }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
@@ -15,548 +15,472 @@
 
 \end{frame}
 
+\begin{frame}
+	\frametitle{Deadlock Avoidance}
+
+	We were attempting to rule deadlock out categorically by eliminating one of the three preconditions for deadlock to be possible.
+
+	If successful, then we can be sure that deadlock does not occur.
+
+	Unfortunately, eliminating the pillars came with some conditions and the best we could accomplish was merely making deadlock less likely.
+
+	Thus, we are forced to live with a system where a deadlock is possible.
+\end{frame}
+
 
 \begin{frame}
-	\frametitle{Monty Python and the Holy Compiler}
+	\frametitle{Deadlock Avoidance}
+
+	Deadlock being possible is not the same thing as deadlock being inevitable.
+
+	We can take steps to avoid it if there is a danger of it actually happening.
 
 	\begin{center}
-		\includegraphics[width=0.4\textwidth]{images/three-riddles.jpg}
+		\includegraphics[width=0.4\textwidth]{images/keepback.png}
 	\end{center}
 
-	The producer-consumer problem, the readers-writers problem, and the dining philosophers problem.
+	The basic strategy is: do not allow a cycle in the resource allocation graph.
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Deadlocked Diners}
+
+	In the dining philosophers problem: limit the number of concurrently-eating philosophers to four, even though the table has five seats.
+
+	With only four philosophers and five chopsticks, there were insufficient requests to complete a cycle.
+
+	This solution is suitable, but not necessarily generalizable to all situations.
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Produce and Consume}
-
-	First: the producer-consumer problem, also sometimes called the bounded-buffer-problem.
-
-	Two processes share a common buffer that is of fixed size.
-
-	One process is the producer: it generates data and puts it in the buffer.
-
-	The other is the consumer: it takes data out of the buffer.
-
-	This problem can be generalized to have $p$ producers and $c$ consumers.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Consume, Obey}
-
-	Rules:
-	\begin{itemize}
-		\item The buffer is of capacity \texttt{BUFFER\_SIZE}.
-		\item Cannot write into a full buffer
-		\item Cannot read from an empty buffer
-	\end{itemize}
-
-	To keep track of the number of items in the buffer, we will have some variable \texttt{count}.
-
-	This is a shared variable, so we need a mutex for it.
-
+	\frametitle{Ordaaaah! Ordah!}
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/order.jpg}
+	\end{center}
 \end{frame}
 
 
 \begin{frame}[fragile]
-	\frametitle{Are We There Yet?}
+	\frametitle{Ordering of Resources}
 
-	If busy-waiting is permitted, we can get away with one mutex.
+	Impose ordering on resource requests. Recall this example:
 
-	Shown below is one loop iteration for each of the producer \& consumer.
-		{\small
-			\begin{multicols}{2}
-				\textbf{Producer}
-				\begin{verbatim}
-	 1. [produce item]
-	 2. added = false
-	 3. while added is false
-	 4.    wait( mutex )
-	 5.    if count < BUFFER_SIZE
-	 6.        [add item to buffer]
-	 7.        count++
-	 8.        added = true
-	 9.    end if
-	10.    post( mutex )
-	11. end while
+	\begin{multicols}{2}
+		\textbf{Thread P}
+		\begin{verbatim}
+	 1. wait( a ) 
+	 2. wait( b )
+	 3. [critical section]
+	 4. signal( a )
+	 5. signal( b )
   \end{verbatim}
-				\columnbreak
-				\textbf{Consumer}
-				\begin{verbatim}
-	 1. removed = false
-	 2. while removed is false
-	 3.    wait( mutex )
-	 4.    if count > 0
-	 5.        [remove item from buffer]
-	 6.        count--
-	 7.        removed = true
-	 8.    end if
-	 9.    post( mutex )
-	10. end while
-	11. [consume item]
+		\columnbreak
+		\textbf{Thread Q}
+		\begin{verbatim}
+	 1. wait( b ) 
+	 2. wait( a )
+	 3. [critical section]
+	 4. signal( b )
+	 5. signal( a )
   \end{verbatim}
-			\end{multicols}
-			\vspace{-2em}
-		}
+	\end{multicols}
+	\vspace{-2em}
+
+	Deadlock would not take place if both threads requested these two resources in the same order, whether \texttt{a} then \texttt{b} or \texttt{b} then \texttt{a}.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Ordering of Resources}
+
+	Let's generalize and formalize this principle.
+
+	The set of all resources in the system is $R = \{R_{0}, R_{1}, R_{2}, ... R_{m}\}$.
+
+	We assign to each resource $R_{k}$ a unique integer value. Let us define this function as $f(R_{i})$, that maps a resource to an integer value.
+
+	This integer value is used to compare two resources: if a process has been assigned resource $R_{i}$, that process may request $R_{j}$ only if $f(R_{j}) > f(R_{i})$.
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Ordering of Resources}
+
+	Note that this is a strictly greater-than relationship.
+
+	If the process needs more than one of $R_{i}$ then the request for all of these must be made at once (in a single request).
+
+	To get $R_{i}$ when already in possession of a resource $R_{j}$ where $f(R_{j}) > f(R_{i})$, the process must release any resources $R_{k}$ where $f(R_{k}) \geq f(R_{i})$.
+
+	If these two protocols are followed, then a circular-wait condition cannot hold.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{The Proof is the Proof}
+
+	Assume a circular wait is present.
+
+	Let the set of processes in the circular wait be $\{P_{0}, P_{1}, ... P_{n}\}$ and the set of resources be $\{R_{0}, R_{1}, ... R_{n}\}$.
+
+	The cycle is formed as: $P_{i}$ waits for resource $R_{i}$ and that resource is held by $P_{i+1}$.
+
+	The exception is the case of $P_{n}$, which waits for resource $R_{n}$ that is held by $P_{0}$.
+
+	Since Process $P_{i+1}$ holds resource $R_{i}$ while requesting $R_{i+1}$, this means $f(R_{i}) < f(R_{i+1})$ for all $i$.
+
+	But this means that $f(R_{0}) < f(R_{1}) < ... < f(R_{n}) < f(R_{0})$.
+
+	It cannot be the case that $f(R_{0}) < f(R_{0})$: a contradiction.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Ordering of Resources}
+
+	Back to the philosophers: we assign each chopstick a number from 0 to 4.
+
+	Each philosopher must then request them in ascending order.
+
+	The first philosopher requests 0, on her left, and then 1, on her right.
+
+	The second requests chopstick 1 and then chopstick 2.
+
+	This continues until the last philosopher who would previously have requested chopstick 4 and then 0, but under the new rules, this is forbidden.
+
+	This philosopher must instead request 0 on his right, and then 4, on his left.
+
+	This last philosopher will be blocked when trying to acquire chopstick 0 and it means chopstick 4 will be available for the second-to-last philosopher.
+
+	Thus, deadlock is avoided.
+
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Ordering Resources}
+
+	In development this is usually enforced just by coding convention and code review.
+
+	If you say that mutexes must always be acquired in alphabetical order (or their order in some file), if everyone sticks to that there will be no issue.
+
+	But may not be as easy as that in a real-world scenario...
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{No Busy-Waiting}
-
-	While this accomplishes what we want, it is inefficient.
-
-	Let's add a new rule that says we want to avoid busy-waiting.
-
-	The producer gets blocked if there are no available spaces.
-
-	The consumer gets blocked if there's nothing to consume.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{When You Lose Track of the Number of Sets...}
+	\frametitle{Stay Alert, Stay Safe}
 
 	\begin{center}
-		\includegraphics[width=0.7\textwidth]{images/counting.jpeg}
+		\includegraphics[width=0.4\textwidth]{images/sass1.png}\\
+		\includegraphics[width=0.4\textwidth]{images/sass2.png}
+	\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Stay Alert, Stay Safe}
+
+	Alternative: each process will need to give the operating system some additional information about what resources might be requested.
+
+	Processes need to say in advance of execution what is the maximum number of resources of each type they might conceivably need.
+
+	Perhaps process $A$ needs the tape drive first, then the printer, and process $B$ needs the printer and then the tape drive.
+
+	With this knowledge, the system can make more intelligent decisions about when to run a process or make it wait, to avoid getting into a deadlock.
+
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Safe States}
+
+
+	We say a state is \alert{safe} if there is some scheduling order in which every process can run to completion.
+
+	Even if all of them suddenly request their maximum resources immediately.
+
+	Hence why we needed to know in advance the maximum resources that could be required by the process.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Safe Sequences}
+
+	More formally, there must exist a \alert{safe sequence}.
+
+	A sequence of processes $<P_{1}, P_{2}, ... P_{n}$ is a safe sequence in the current allocation state if:
+
+	For each $P_{i}$ the resource requests that $P_{i}$ can still make can be satisfied by the currently available resources plus resources held by $P_{j}$ where $j < i$.
+
+	If a resource $P_{i}$ needs is not currently available, $P_{i}$ can wait until all $P_{j}$ have finished and releases its resources.
+
+	When $P_{i}$ terminates, $P_{i+1}$ can obtain its needed resources and continue.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Safe/Unsafe}
+
+	Any state that is not safe is considered \alert{unsafe}.
+
+	If the system is in a safe state, then there is no deadlock.
+
+	Being in an unsafe state does not mean that there is a deadlock, but it means a deadlock is possible.
+
+	The analysis we do is the worst case scenario: every process immediately requests the maximum resources it could ever use.
+
+	Perhaps the processes do not make those requests in reality.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Safe State Example}
+
+	There are three processes $A$, $B$, and $C$.
+
+	Assume there is only one resource, and a maximum of 10 instances exist.
+
+	Suppose $A$ has 3 resources but may request up to 9.\\
+	$B$ has 2 and may request up to 4.\\
+	$C$ has 2 and may request up to 7.
+
+	There are 3 resources currently free.
+
+	\begin{center}
+		\includegraphics[width=0.25\textwidth]{images/safe-state-initial.png}
 	\end{center}
 
 \end{frame}
 
-
 \begin{frame}
-	\frametitle{Use Semaphores To Count}
+	\frametitle{Being Safe}
 
-	Use 2 general semaphores, each with maximum value of \texttt{BUFFER\_SIZE}.
 
-	\texttt{items}: starts at 0 and represents how many spaces in the buffer are full.
+	For a state to be safe, we need one path that allows all processes to complete.
 
-	\texttt{spaces}: starts at \texttt{BUFFER\_SIZE} and represents the number of spaces in the buffer that are currently empty.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Producer-Consumer with Waiting}
-
-	\begin{multicols}{2}
-		\textbf{Producer}
-		\begin{verbatim}
-	 1. [produce item]
-	 2. wait( spaces )
-	 3. [add item to buffer]
-	 4. post( items )
-  \end{verbatim}
-		\columnbreak
-		\textbf{Consumer}
-		\begin{verbatim}
-	 1. wait( items )
-	 2. [remove item from buffer]
-	 3. post( spaces )
-	 4. [consume item]
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-	Does this work?
-
-	Are there any implicit assumptions?
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Assumptions made? I assume so...}
-
-	(1) The actions of adding an item to the buffer and removing an item from the buffer add to and remove from the ``next'' space.
-
-	(2) There is exactly one producer and one consumer in the system.
-
-	If we have two producers, for example, they might be trying to write into the same space at the same time, and this would be a problem.
-
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Mmmmmmmulti-Consume!}
-
-	To generalize this solution to allow multiple producers and multiple consumers, we need a \texttt{mutex}.
-
-	\begin{multicols}{2}
-		\textbf{Producer}
-		\begin{verbatim}
-	 1. [produce item]
-	 2. wait( spaces )
-	 3. wait( mutex )
-	 4. [add item to buffer]
-	 5. post( mutex )
-	 6. post( items )
-  \end{verbatim}
-		\columnbreak
-		\textbf{Consumer}
-		\begin{verbatim}
-	 1. wait( items )
-	 2. wait( mutex )
-	 3. [remove item from buffer]
-	 4. post( mutex )
-	 5. post( spaces )
-	 6. [consume item]
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-	Does this work?
-
-	Anything... worrying?
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Cancel Red Alert}
-
-	The hint that we might have a problem is one \texttt{wait} statement inside another.
-
-	But it doesn't guarantee a problem...
-
-	We should be able to reason through why there is (or isn't) a problem.
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Alternative Solution: PC}
-
-	\begin{multicols}{2}
-		\textbf{Producer}
-		\begin{verbatim}
-	 1. [produce item]
-	 2. wait( mutex )
-	 3. wait( spaces )
-	 4. [add item to buffer]
-	 5. post( items )
-	 6. post( mutex )
-  \end{verbatim}
-		\columnbreak
-		\textbf{Consumer}
-		\begin{verbatim}
-	 1. wait( mutex )
-	 2. wait( items )
-	 3. [remove item from buffer]
-	 4. post( spaces )
-	 5. post( mutex )
-	 6. [consume item]
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-	Does this work?
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{The Tiny Details...}
-
-	This solution does have the deadlock problem!
-
-	Imagine at the start of execution, the buffer is empty and the consumer runs first...
-
-	Do you see the problem now?
-
-	This could also happen with the producer.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Problems are Only Sometimes a Problem}
-
-	If this solution were implemented, it wouldn't guarantee a deadlock occurs.
-
-	In fact, it probably works fine most of the time.
-
-
-	Once, however, we have found one scenario that can lead to deadlock, there is no need to look for other failure cases.
-
-	We can replace this solution with a better one.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{P-C Example}
-
-	\begin{lstlisting}[language=C]
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <semaphore.h>
-
-#define BUFFER_SIZE 20
-sem_t spaces;
-sem_t items;
-int counter = 0;
-int* buffer;
-
-int produce() {
-  ++counter;
-  return counter;
-} 
-
-void consume( int value ) {
-  printf("Consumed %d.\n", value);
-}
-\end{lstlisting}
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{P-C Example}
-
-	\begin{lstlisting}[language=C]
-void* producer( void* arg ) {
-  int pindex = 0;
-  while( counter < 10000 ) {
-    int v = produce();
-    sem_wait( &spaces );
-    buffer[pindex] = v;
-    pindex = (pindex + 1) % BUFFER_SIZE;
-    sem_post( &items );
-  }
-  pthread_exit( NULL );
-}
-
-void* consumer( void* arg ) {
-  int cindex = 0;
-  int ctotal = 0;
-  while( ctotal < 10000 ) {
-    sem_wait( &items );
-    int temp = buffer[cindex];
-    buffer[cindex] = -1;
-    cindex = (cindex + 1) % BUFFER_SIZE;
-    sem_post( &spaces );
-    consume( temp );
-    ++ctotal;
-  }
-  pthread_exit( NULL );
-}
-\end{lstlisting}
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{P-C Example}
-
-	\begin{lstlisting}[language=C]
-int main( int argc, char** argv ) {
-  buffer = malloc( BUFFER_SIZE * sizeof( int ) );
-  for ( int i = 0; i < BUFFER_SIZE; i++ ) {
-    buffer[i] = -1;
-  }  
-  sem_init( &spaces, 0, BUFFER_SIZE );
-  sem_init( &items, 0, 0 );
-
-  pthread_t prod;
-  pthread_t con;
-
-  pthread_create( &prod, NULL, producer, NULL );
-  pthread_create( &con, NULL, consumer, NULL );
-  pthread_join( prod, NULL );
-  pthread_join( con, NULL );
-
-  free( buffer );
-  sem_destroy( &spaces );
-  sem_destroy( &items );
-  pthread_exit( 0 );
-}
-
-\end{lstlisting}
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Before We Go On}
+	Multiple solutions may exist, and there may be paths that lead to deadlock.
 
 	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/stop-hammertime.jpg}
+		\includegraphics[width=0.9\textwidth]{images/safe-state.png}
+	\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Crossing the Line}
+
+	Suppose, however, $A$ requests and gets another resource.
+
+	In that case, the initial condition has changed so that $A$ has 4 resources and there are 2 free resources.
+
+	Or, in the diagram below, the state changes from (a) to (b).
+
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/unsafe-state-initial.png}
+	\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Evaluating the New Initial State}
+
+	Trying to find a way for all processes to complete is not possible.
+	
+	\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/danger.jpg}
+	\end{center}
+
+	Thus, this state is unsafe.
+
+	This does not mean that deadlock is present or certain.
+
+	The analysis is worst-case.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{I Dare Say, Holmes...}
+
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/sherlock-wall.png}
+	\end{center}
+	\hfill Image Credit: Sherlock Holmes: Game of Shadows.
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Resource-Allocation-Graph Algorithm}
+
+	The fourth condition for deadlock is modelled, typically as being a resource allocation graph with a cycle in it.
+
+	Idea: let us use that idea to avoid deadlock by having the operating system maintain a resource allocation graph.
+
+	This works if there is only one instance of each resource and still requires that all the resources that a process will require must be declared in advance.
+
+	This condition does not have to be strictly adhered to if the system allows additional requests only when no requests have yet been granted.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Resource-Allocation-Graph}
+
+	The model for resource allocation graphs earlier had two kinds of edges:
+
+	One representing requests (a process requests a resource); and
+	One representing allocation (a resource currently belongs to a process).
+
+	We will require a new type of edge in the graph: a \alert{claim} edge.
+
+	When the process actually makes the request for the resource, a claim edge is converted to a request edge.
+
+	Upon release the assignment edge reverts to a claim edge.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Resource Allocation Graph}
+
+	\begin{center}
+		\includegraphics[width=0.3\textwidth]{images/resource-allocation-graph-claim.png}
+	\end{center}
+
+	A resource request will only be granted if converting the request edge to an assignment edge will not result in a cycle in the graph.
+
+	If no cycle is found, then allocation of the resource will not move the system into an unsafe state.
+
+	If a cycle is found, the request should not be granted, as it risks a deadlock.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{The Banker's Algorithm}
+
+	The previous algorithm is applicable only if all resource requests are known in advance and there is only one instance of each resource.
+
+	The banker's algorithm is general: it allows for resources with multiple instances.
+
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{images/monopoly-man.jpg}
 	\end{center}
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Mutex Syntax}
+	\frametitle{The Banker's Algorithm}
 
-	We should take a moment to learn about the syntax of the pthread mutex.
 
-	While it is possible, of course, to use a semaphore as a mutex, frequently we will use the more specialized tool for this task.
+	It received this name because it is hypothetically an algorithm that a small town banker might follow.
 
-	In fact, it's generally good practice to use the more specialized tool.
+	It's not ``run up huge debts and then cry until the government bails you out...''
 
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Mutex Syntax}
-
-	The structure representing the mutex is of type \texttt{pthread\_mutex\_t}.
-
-	\begin{lstlisting}[language=C]
-pthread_mutex_init( pthread_mutex_t *mutex, pthread_mutexattr_t *attributes )
-\end{lstlisting}
-
-	\texttt{mutex}: the mutex to intiialize.
-
-	\texttt{attributes}: the attributes; \texttt{NULL} is fine for defaults.
-
-	Shortcut if you do not want to set attributes:
-
-	\begin{lstlisting}[language=C]
-pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
-\end{lstlisting}
-
-	By default, the mutex is created as unlocked.
+	He or she is trying to prevent allocating the cash on hand in such away that he or she could no longer satisfy customers.
 
 \end{frame}
 
-\begin{frame}[fragile]
-	\frametitle{Lock and Unlock}
+\begin{frame}
+	\frametitle{The Banker's Algorithm}
 
-	\begin{lstlisting}[language=C]
-pthread_mutex_lock( pthread_mutex_t *mutex )
-pthread_mutex_trylock( pthread_mutex_t *mutex ) /* Returns 0 on success */
-pthread_mutex_unlock( pthread_mutex_t *mutex )
-\end{lstlisting}
 
-	Unlock is self-explanatory.
+	The analysis we did earlier to determine if a state is safe or unsafe, is the foundation of the banker's algorithm.
 
-	\texttt{pthread\_mutex\_lock} is blocking.
+	\begin{center}
+		\includegraphics[width=0.35\textwidth]{images/unsafe-state-initial.png}
+	\end{center}
 
-	\texttt{pthread\_mutex\_trylock} is nonblocking.
+	Granting the request from process $A$ moved the system safe to unsafe.
 
-	Trylock will come up again soon when we look at another classical synchronization problem.
+	The operating system, when it receives a resource request, will evaluate the new state to see if it would transition the system to an unsafe state.
 
 \end{frame}
 
-\begin{frame}[fragile]
-	\frametitle{Destroy the Mutex}
+\begin{frame}
+	\frametitle{The Banker's Algorithm}
 
-	\begin{lstlisting}[language=C]
-pthread_mutex_destroy( pthread_mutex_t *mutex )
-\end{lstlisting}
+	If so, the request will be denied or $A$ will be blocked until the request can be fulfilled without putting the system in an unsafe state.
 
-	Destroy is also self-explanatory.
+	Holding to this condition means deadlock will be avoided.
 
-	An attempt to destroy the mutex may fail if the mutex is currently locked.
+	The banker's algorithm can accommodate multiple resources.
 
-	Attempting to destroy a locked one results in undefined behaviour.
+	\begin{center}
+		\includegraphics[width=0.6\textwidth]{images/bankers-multiple.png}
+	\end{center}
+
 
 \end{frame}
 
+\begin{frame}
+	\frametitle{Checking if a State is Safe}
 
-\begin{frame}[fragile]
-	\frametitle{Multiple Producer-Consumer Example}
-	\begin{lstlisting}[language=C]
-#include <stdlib.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <math.h>
-#include <semaphore.h>
+	\begin{enumerate}
+		\item Look for a row in the matrix, $r$, where the unmet resource needs are less than or equal to the available resources in $A$.\\
+		      \quad If no such row exists, the system state is unsafe.
+		\item Assume the process from $r$ gets all the resources it needs. Mark that process as terminated and put all its resources into $A$, the available pool.
+		\item Repeat steps 1 and 2 until either:\\
+		      \quad (i) all processes are marked terminated and the initial state was safe; or \\
+		      \quad (ii) no process remains whose needs can be met; initial state is unsafe.
+	\end{enumerate}
 
-#define BUFFER_SIZE 100
-int buffer[BUFFER_SIZE];
-int pindex = 0;
-int cindex = 0;
-sem_t spaces;
-sem_t items;
-pthread_mutex_t mutex;
+	If more than one process may be chosen in step 1, it does not matter which.
 
-int produce( int id ) {
-  int r = rand();
-  printf("Producer %d produced %d.\n", id, r);
-  return r;
-}
+	The pool of available resources will either stay the same or get larger.
 
-void consume( int id, int number ) {
-  printf("Consumer %d consumed %d.\n", id, number);
-}
-\end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]
-	\frametitle{Multiple Producer-Consumer Example}
-	\begin{lstlisting}[language=C]
-void* producer( void* arg ) {
-  int* id = (int*) arg;
-  for(int i = 0; i < 10000; ++i) {
-    int num = produce(*id); 
-    sem_wait( &spaces );
-    pthread_mutex_lock( &mutex );
-    buffer[pindex] = num;
-    pindex = (pindex + 1) % BUFFER_SIZE;
-    pthread_mutex_unlock( &mutex );
-    sem_post( &items );
-  }
-  free( arg );
-  pthread_exit( NULL );
-}
-\end{lstlisting}
+\begin{frame}
+	\frametitle{The Banker's Algorithm}
+
+	Determine if granting a resource makes the system unsafe: what-if calculation.
+
+	Assume the resource granted; do the safe state calculation given that new state.
+
+	If the result is that the state is unsafe, the request should be deferred or denied.
+
 \end{frame}
 
-\begin{frame}[fragile]
-	\frametitle{Multiple Producer-Consumer Example}
-	\begin{lstlisting}[language=C]
+\begin{frame}
+	\frametitle{The Banker's Algorithm: Useless?}
 
-void* consumer( void* arg ) {
-  int* id = (int*) arg;
-  for(int i = 0; i < 10000; ++i) {
-    sem_wait( &items );
-    pthread_mutex_lock( &mutex );
-    int num = buffer[cindex];
-    buffer[cindex] = -1;
-    cindex = (cindex + 1) % BUFFER_SIZE;
-    pthread_mutex_unlock( &mutex );
-    sem_post( &spaces );
-    consume( *id, num );
-  }
-  free( id );
-  pthread_exit( NULL );
-}
-\end{lstlisting}
+	As great as the banker's algorithm is in theory, in practice it is utterly useless.
+
+	Processes rarely know in advance what their maximum resource needs will be.
+
+	The number of processes is not fixed, but varies with users' wishes.
+
+	Finally, a resource that was thought to be available can suddenly vanish.
+
+	Thus in practice, the banker's algorithm can almost never be used.
+
+
 \end{frame}
 
-\begin{frame}[fragile]
-	\frametitle{Multiple Producer-Consumer Example}
-	\begin{lstlisting}[language=C]
-int main( int argc, char** argv ) {
-  sem_init( &spaces, 0, BUFFER_SIZE );
-  sem_init( &items, 0, 0 );  
-  pthread_mutex_init( &mutex, NULL );
+\begin{frame}
+	\frametitle{Summary of Avoidance}
 
-  pthread_t threads[20];
+	Avoidance techniques may be useful in preventing a deadlock from occurring without having to preempt resources or forbidding hold-and-wait conditions.
 
-  for( int i = 0; i < 10; i++ ) {
-    int* id = malloc(sizeof(int));
-    *id = i;
-    pthread_create(&threads[i], NULL, producer, id);
-  }
-  for( int j = 10; j < 20; j++ ) {
-    int* jd = malloc(sizeof(int));
-    *jd = j-10;
-    pthread_create(&threads[j], NULL, consumer, jd);
-  }
-  for( int k = 0; k < 20; k++ ){  
-    pthread_join(threads[k], NULL);
-  }
-  sem_destroy( &spaces );
-  sem_destroy( &items );
-  pthread_mutex_destroy( &mutex );
-  pthread_exit( 0 );
-}
-\end{lstlisting}
+	Unfortunately, it requires a fixed number of known resources to allocate.
+
+	It also requires foreknowledge about what resources a process might need.
+
+	Finally, because it deals with the worst case, it reduces system performance in the name of safety.
+
 \end{frame}
-
 
 
 \end{document}

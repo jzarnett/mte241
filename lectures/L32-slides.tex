@@ -1,620 +1,502 @@
 \input{configuration}
 
-\title{Lecture 32 --- Deadlock }
+
+\title{Lecture 32 --- Concurrency Control Implementation }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
-	University of Waterloo}
+  University of Waterloo}
 \date{\today}
 
 
 \begin{document}
 
 \begin{frame}
-	\titlepage
+  \titlepage
 
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Deadlock!}
-
-	\begin{center}
-		\includegraphics[width=\textwidth]{images/deathstroke.jpg}
-	\end{center}
-
-	Hmm... no... not quite...
-
-\end{frame}
-
+ \end{frame}
 
 \begin{frame}
-	\frametitle{Okay, This Time It's Deadlock!}
+\frametitle{Things Got Weird}
 
-	\begin{center}
-		\includegraphics[width=\textwidth]{images/deadpool.jpg}
-	\end{center}
+We talked a lot about why we need concurrency control mechanisms.
 
-	No? Whoops.
+We even spent a little time discussing how they might work.
 
-\end{frame}
+But...
 
-
-\begin{frame}
-	\frametitle{This One Really Is Deadlock!}
-
-	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/deadlock.jpg}
-	\end{center}
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/kansas.jpg}
+\end{center}
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Skeptical Dog Says:}
+\frametitle{LA LA LA LA NOT LISTENING}
 
-	\begin{center}
-		\includegraphics[width=0.4\textwidth]{images/skeptical-dog.jpg}
-	\end{center}
+One possible solution that works in an embedded system or very simple OS is disabling interrupts. 
 
-	Really. He's an Image Comics character. He first appeared in 1992.
+Crude and permits bad behaviour...
 
-	I think he's an off-brand Wolverine.
-
-	I don't know either.
-
-
-\end{frame}
-
-
-
-\begin{frame}
-	\frametitle{The Dining Philosophers Problem}
-
-	The dining philosophers problem was also proposed by Dijkstra in 1965.
-
-	The problem can have $n$ philosophers, but problem is typically described as 5.
-
-	These five smart individuals spend their lives thinking, but every so often, they need to eat. They share a table, each having his or her own chair.
-
-	In the centre of the table is a bowl of rice, \& it is laid with 5 single chopsticks.
+Does not work for multiple processors.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{The Dining Philosophers Problem}
+\frametitle{Test-and-Set}
 
-	\begin{center}
-		\includegraphics[width=0.6\textwidth]{images/philosopher-table.png}
-	\end{center}
+Where we landed was the use of test-and-set!
 
-\end{frame}
-
-\begin{frame}
-	\frametitle{Dinner Time}
-
-	When a philosopher wishes to eat, she sits down at her designated chair, and attempts to pick up the two chopsticks that are nearest.
-
-	Philosophers are polite and therefore do not grab a chopstick out of the hands of a colleague.
-
-	When a philosopher has both chopsticks, she may eat rice, and when she is finished, she puts down the chopsticks and goes back to thinking.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Dining with Semaphores}
-
-	Suppose then that semaphores are the method for managing things.
-
-	Because only one person can be in possession of a chopstick at a time, each chopstick may be represented by a binary semaphore.
-
-	When the philosopher sits down he attempts to acquire the left chopstick, then the right, eats, and puts the chopsticks down.
-
-	This works fine, until all philosophers sit down at the same time. Each grabs the chopstick to his or her left.
-
-	None of them are able to acquire the chopstick to his or her right (because someone has already picked it up).
-
-	None of the philosophers can eat; they are all stuck. Deadlock.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Deadlock at the Dinner Table}
-
-	\begin{center}
-		\includegraphics[width=0.4\textwidth]{images/olivertwist.jpeg}
-	\end{center}
-
-	This example makes it more clear why we call a situation where a thread never gets to run ``starvation''.
-
-	If a philosopher is never able to get both chopsticks, they won't eat.
-
-	Though I am not an expert on biology, I have it on good authority that people who do not eat anything end up eventually starving to death.
-
-	Even philosophers.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Saving the Philosophers}
-
-	One thing that would guarantee that this problem does not occur is to protect the table with a binary semaphore.
-
-	This would allow exactly one philosopher at a time to eat, but at the very least, deadlock and starvation would be avoided.
-
-	Although this works, it is a suboptimal solution.
-
-	There are five seats and five chopsticks. Yet only one person is eating at a time.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{No, the Pigeons are not for Eating}
-
-	What if we limit the number of philosophers at the table concurrently to four?
-
-	The pigeonhole principle applies here: if there are $k$ pigeonholes and more than $k$ pigeons, at least one pigeonhole must have at least two pigeons.
-
-	Thus, at least one of the four philosophers can get two chopsticks.
-
-	Implementation is easy: a general semaphore with a max and initial value of 4.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Invite a Leftie}
-
-	\begin{center}
-		\includegraphics[width=0.4\textwidth]{images/leftorium.jpg}
-	\end{center}
-
-	The problem above occurs because every philosopher tries to pick up the left chopstick first.
-
-	If some of them try to pick up the left and some pick up the right first, then deadlock will not happen.
-
-	This problem is a great basis to launch into a discussion about deadlock...
-
-\end{frame}
-
-
-
-\begin{frame}
-	\frametitle{Deadlock}
-
-	An informal definition of deadlock: all processes being ``stuck''.
-
-	A more formal definition: ``the \textit{permanent} blocking of a set of processes that either compete for system resources or communicate with each other''.
-
-	It may be possible for all processes to be stuck temporarily, because one is waiting for some event (e.g., a read from disk).
-
-	This situation will resolve itself and is not deadlock.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Deadlock}
-	A set of processes is truly deadlocked when each process in the set is blocked on some event that can only be triggered by another blocked process in the set.
-
-	In this case it is permanent, because none of the events can take place.
-
-	A deadlock involves some conflicting needs for resources by two or more processes.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{A Traffic Deadlock}
-
-	\begin{center}
-		\includegraphics[width=\textwidth]{images/car-deadlock.png}
-	\end{center}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{A Traffic Deadlock}
-
-	Whichever vehicle arrives at the stop sign first has the right of way.
-
-	If two vehicles arrive at the same time, a vehicle yields the right of way to the vehicle on its right.
-
-	Okay, as long as 3 or fewer vehicles come to the stop sign at the same time.
-
-	If all four vehicles arrive at the same time, we have the potential for a problem.
-\end{frame}
-
-\begin{frame}
-	\frametitle{A Traffic Deadlock}
-
-	It is not a deadlock yet, because none of the processes are stuck yet.
-
-	If all the drivers believe they should go first, we get the situation on the right, and we actually do have deadlock.
-
-	This is very much like the dining philosophers problem; deadlock occurs if everyone tries to do the same thing at the same time.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Deadlocks}
-
-	Of course, for deadlock to occur, we do not have to have symmetric processes trying to do the same thing at the same time.
-
-	Given two semaphores, \texttt{a} and \texttt{b}, and two processes, we can have the following code that will sometimes, but not always lead to deadlock.
-
-	If thread $P$ locks \texttt{a} and then there is a process switch, and \texttt{b} is locked by $Q$, both threads will be stuck.
-
-	Each has one resource the other needs, but they are both blocked.
-
+A special machine instruction that is performed in a single instruction cycle and is therefore not interruptible.
 
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Deadlock of $P$ and $Q$}
-	It's not always this easy to see:
-
-
-	\begin{multicols}{2}
-		\textbf{Thread P}
-		\begin{verbatim}
-	 1. wait( a ) 
-	 2. wait( b )
-	 3. [critical section]
-	 4. signal( a )
-	 5. signal( b )
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread Q}
-		\begin{verbatim}
-	 1. wait( b ) 
-	 2. wait( a )
-	 3. [critical section]
-	 4. signal( b )
-	 5. signal( a )
-  \end{verbatim}
-	\end{multicols}
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Reusable and Consumable Resources}
-	We can generally classify a resource as either \alert{reusable} or \alert{consumable}.
-
-	A reusable resource can be used by one process at a time, and is not depleted.
-
-	A process may lock the resource, make use of it, then release it such that other processes may acquire it.
-
-	Processors, memory, files, semaphores are all examples of reusable resources.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Reusable and Consumable Resources}
-
-	A consumable resource is one that is created and destroyed upon consumption.
-
-	If the user presses the ``Z'' key on the keyboard, this generates an interrupt and produces the ``Z'' character in a buffer.
-
-	A process that takes input will then consume that character (e.g., it goes into the \texttt{vi} editor window) and it is unavailable to other processes.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Conditions for Deadlock}
-
-	When a disaster happens, it is typically a result of a chain of things going wrong.
-
-	If any one of those things did not happen, the disaster would be averted.
-
-	This is referred to as ``breaking the chain''.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Conditions for Deadlock}
-	There are four conditions for deadlock:
-
-	\begin{enumerate}
-		\item \textbf{Mutual Exclusion}
-		\item \textbf{Hold-and-Wait}
-		\item \textbf{No Preemption}
-		\item \textbf{Circular-Wait}
-	\end{enumerate}
-
-
-	If the first three conditions are true, deadlock is possible, but deadlock will only happen if the fourth condition is fulfilled.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Resource Allocation Graph}
-
-	\begin{center}
-		\includegraphics[width=0.50\textwidth]{images/rag1.png}
-	\end{center}
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Resource Allocation Graph}
-
-	If there are no cycles in the graph, no process in the system is deadlocked.
-
-	If a cycle exists, then some process \textit{may} be deadlocked:
-
-	\begin{center}
-		\includegraphics[width=0.40\textwidth]{images/rag2.png}
-	\end{center}
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Resource Allocation Graph}
-
-	But the presence of a cycle is not necessarily certain that there is a deadlock.
-
-	\begin{center}
-		\includegraphics[width=0.40\textwidth]{images/rag3.png}
-	\end{center}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Dealing with Deadlock}
-
-	There are four basic approaches to dealing with deadlock.
-
-	\begin{enumerate}
-		\item Ignore it.
-		\item Deadlock prevention.
-		\item Deadlock avoidance.
-		\item Deadlock detection.
-	\end{enumerate}
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Also Called the Ostrich Algorithm}
-
-	\begin{center}
-		\includegraphics[width=0.7\textwidth]{images/ostrich-head-sand.jpg}
-	\end{center}
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Ignoring Deadlock}
-
-	This option is certainly convenient for operating system designers!
-
-	They simply pretend that deadlock can never happen.
-
-	Or if it does happen, it is the application developers' fault.
-
-	It doesn't seem right, but... Microsoft Windows takes this approach.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Deadlock Prevention}
-
-	This approach is a way of preventing a deadlock from being possible.
-
-	The first three conditions for deadlock (mutual exclusion, hold and wait, and no preemption) are all necessary for deadlock to be possible.
-
-	If we eliminate one of these three pillars, deadlock is not possible and it is prevented from happening.
-
-	But can you remove the need for it in your program?
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Knocking Down: Mutual Exclusion}
-
-	Mutual Exclusion cannot, generally speaking, be disallowed.
-
-	The purpose of  mutual exclusion is: prevent errors like inconsistent state/crashes.
-
-	Getting rid of mutual exclusion to rule out the possibility of deadlock is a cure that is worse than the disease.
-
-	It is therefore not acceptable as a solution.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Knocking Down Hold-and-Wait}
-	To prevent the hold-and-wait condition, we must guarantee that when a process requests a resource, it does not have any other resource.
-
-	This does not mean that things can be requested only one at a time.
-
-	One plausible solution: request all resources at the beginning of the program.
-
-	If the program needs $R_{1}$, $R_{2}$, and $R_{3}$ at some point, all three must be requested right at the beginning and held throughout the program.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Knocking Down Hold-and-Wait}
-
-	A process has to know in advance all of the resources that it will need.
-
-	Remember that a file is a resource.
-
-	A simple text editor can be used by the user to open an arbitrary file.
-
-	How do we know in advance which will be requested?
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Knocking Down Hold-and-Wait}
-
-	This also has performance implications: a process cannot start until it has all the resources it will ever need, even if it will not need them until much later.
-
-	Thus, processes might spend a lot of time waiting before starting.
-
-	In theory, a process might never start if one or more of the resources it needs is always in use (so this is vulnerable to starvation).
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Knocking Down Hold-and-Wait}
-
-	What if a process must release all its currently-held resources before it can get any new ones?
-
-	The process has $R_{1}$ and $R_{2}$ and wants to get $R_{3}$.\\
-	\quad First release $R_{1}$ and $R_{2}$ before it can request all three.
-
-	A resource that cannot be easily released is memory.\\
-	\quad Released memory may be collected and reassigned by the operating system.
-
-	Therefore we cannot release all resources.
-
-	We cannot rule out deadlock; we can only make it less likely to occur.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Two-Phase Locking}
-	
-	\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/cookiedown.jpg}
-	\end{center}
-
-	Another idea that might work is \alert{two-phase locking}.
-
-	A process attempts to lock a group of resources at once.
-
-	If it does not get everything it needs, it releases the locks it got and tries again.
-
-	Thus a process does not wait while holding resources.
-
-	If a philosopher picks up a chopstick but is unable to acquire a second, she puts down the chopstick she has picked up and tries again.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Two-Phase Locking}
-
-	Two phase locking is not applicable to our current model for semaphores.
-
-	There is no way to know the value of the semaphore and the operating system will block a process on a \texttt{wait} if some other thread is in the critical region.
-
-	After the process is blocked on the semaphore, a second process will run, and the first process does not get the opportunity to release the resources it holds.
-
-	There are systems that have nonblocking requests \& mutual exclusion.
-
-	Then the program is responsible for checking if any of the requests returned \texttt{false} and releasing any resources where the request returned \texttt{true}.
-
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Try This}
-	Fortunately, we know of some routines that do just this: the \texttt{trylock} functions that were mentioned earlier but not expanded upon:
-	\begin{lstlisting}[language=C]
-int pthread_mutex_trylock( pthread_mutex_t * mutex )
-int pthread_rwlock_tryrdlock( pthread_rwlock_t * rwlock )
-int pthread_rwlock_trywrlock( pthread_rwlock_t  * rwlock )
-\end{lstlisting}
-
-	These functions return an integer and it's extremely important to check and see if the return code is 0.
-
-	That is the only way to know if the lock was acquired.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Have You Tried Trying?}
-
-	It should be possible to reason about this solution and demonstrate that:\\
-	\quad (1) a philosopher can only eat if they have both chopsticks, and\\
-	\quad (2) deadlock does not occur.
-
-	\begin{lstlisting}[language=C]
-int locked_both = 0;
-while( locked_both == 0 ) {
-  int locked1 = pthread_mutex_trylock( chopstick1 );
-  int locked2 = pthread_mutex_trylock( chopstick2 );
-  if (locked1 != 0 && locked2 == 0) {
-    pthread_mutex_unlock( chopstick2 );
-  } else if (locked1 == 0 && locked2 != 0 ) {
-    pthread_mutex_unlock( chopstick1 );
-  } else if (locked1 != 0 && locked2 != 0 ) {
-    /* Do nothing */
+\frametitle{Testing and Setting}
+
+\begin{lstlisting}[language=C]
+boolean test_and_set( int* i ) {
+  if ( *i == 0 ) {
+    *i = 1;
+    return true;
   } else {
-    locked_both = 1;
+    return false;
   }
 }
-eat( );
+\end{lstlisting}
 
-pthread_mutex_unlock( chopstick1 );
-pthread_mutex_unlock( chopstick2 );
+An example of the code that uses the \texttt{test\_and\_set} routine:
+
+\begin{lstlisting}[language=C]
+while ( !test_and_set( busy ) ) {
+   /* Wait for my turn */
+}
+/* critical section */
+busy = 0;
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Testing and Setting}
+
+No matter how many threads are executing the code above concurrently, only one will succeed in actually setting the value to 1.
+
+You will notice here that the assignment of \texttt{busy = 0} doesn't use something like a test-and-clear instruction or similar.
+
+Is that assignment okay? Grudgingly!
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Compare-and-Swap}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/compare-swap.png}
+\end{center}
+
+Test-and-Set does not work for the general, counting semaphore.
+
+Alternative: \alert{compare-and-swap} (or compare-and-exchange).
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Comparing and Swapping}
+
+\begin{lstlisting}[language=C]
+int compare_and_swap( int * value, int old_value, int new_value ) {
+  if ( *value == old_value ) {
+    *value = new_value;
+    return old_value;
+  }
+  return *value;
+}
 \end{lstlisting}
 
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Try, Try Again}
+\frametitle{Comparing and Swapping}
 
-There does exist a ``try'' function for the semaphore as well:
+And to make use of it in trying to decrement a semaphore:
 
-\begin{lstlisting}
-int sem_trywait( sem_t * sem );
+\begin{lstlisting}[language=C]
+int old = 1;
+while (true) {
+  int actual = compare_and_swap( sem, old, old - 1 );
+  if ( actual == old ) {
+    old = old - 1;
+    break;
+  } else {
+    old = actual;
+  }
+}
+/* WAIT FOR OUR TURN */
+/* critical section */
+while (true) {
+  int actual = compare_and_swap( sem, old, old + 1 );
+  if ( actual == old ) {
+    break;
+  } else {
+    old = actual;
+  }
+}
 \end{lstlisting}
 
-If we would have been blocked at the call to \texttt{sem\_trywait}, it returns -1 and \texttt{errno} is set to \texttt{EAGAIN}.
-
 \end{frame}
-
-
 
 \begin{frame}
-	\frametitle{Knocking Down No Preemption}
+\frametitle{It Took How Many Tries?}
 
-	Preemption: forcible removal of resources from a process.
+We will eventually succeed, even if it takes an arbitrary amount of time.
 
-	Suppose a process $P_{1}$ holds $R_{1}$ and $R_{2}$ and wants to get $R_{3}$, but $R_{3}$ is unavailable.
+ It might be possible for a thread to be so unlucky it never gets a turn, but let's just say that this does not happen.
 
-	$P_{1}$ will be blocked by the operating system.
+The initial guess for \texttt{old} can certainly be wrong; the initial attempt to set it will fail and we'll get the correct value.
 
-	If $P_{2}$ requests $R_{1}$ and $R_{2}$, the resources $R_{1}$ and $R_{2}$ are taken away from $P_{1}$.
-
-	The resources are added to the list of things that $P_{1}$ is waiting for.
-
-	In the meantime, $P_{2}$ can use them and continue.
-
-	$P_{1}$ will be unblocked when all three resources are once again available for it.
+Need to use CAS for decrementing also!
 
 \end{frame}
-
 
 \begin{frame}
-	\frametitle{Allowing Preemption}
+\frametitle{Wait, Why?}
 
-	For preemption to work, however, the resource must be a resource of a type where the state can be saved and restored (e.g., the CPU with its registers).
+Alternative: if there is appropriate hardware support, do an atomic increment or atomic decrement.
 
-	This isn't really something we can do as program designers.
-
-	This is not applicable to all resources; if a printer is in use by $P_{1}$ it cannot be preempted and given to $P_{2}$, otherwise the printout will be a jumble.
-
-	Thus, preemption is also not sufficient to prevent deadlock from ever transpiring, it once again only makes it less likely.
-
-
+That prevents a scenario where multiple attempts are necessary to get the value. 
 
 \end{frame}
 
+\begin{frame}
+\frametitle{Terms and Conditions Apply}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/legaleagle.png}
+\end{center}
+
+There is the big ~~\texttt{WAIT FOR OUR TURN} ~~ comment there...
+
+Uh... how \textit{do} we wait for it?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{The Future is Now}
+
+Earlier: if we don't get the result we want, the OS blocks the thread.
+
+No details were provided as to how that happens; just hand-waving.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/tomorrow.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Blocking and Unblocking}
+
+So you want to lock a mutex or wait on a semaphore...
+
+There was a system call; it had a TAS, CAS, or atomic operation.
+
+If this was a trylock call, they don't get blocked; skip this section.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Block On}
+
+Blocking a thread is easy for the operating system.
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/supereasy.jpg}
+\end{center}
+
+Change the status to be blocked and choose another thread to run.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Blocked Threads Go Where?}
+
+Marking a thread as blocked or moving it to a ``blocked'' queue is insufficient.
+
+We will need some way of knowing that this thread is blocked on the particular semaphore or mutex it was accessing.
+
+Maybe the mutex/semaphore has its own queue?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Unblocking}
+
+Whichever thread did lock the mutex will want to unlock it or some thread will post on a semaphore.
+
+Counting semaphore: always increase counter, unblock a thread waiting.
+
+Mutex: change the counter only if no thread waiting, otherwise unblock.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Who's Waiting?}
+
+This prompts immediately the question of what thread should be unblocked when an unlock or post event occurs. 
+
+Again, that's a scheduling decision, but you could choose a simple and ``fair'' approach of just taking the first thread in the queue. 
+
+This might not be optimal. Why?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{On the Other Hand}
+
+The first-come-first-served approach does prevent the possibility of starvation, as each thread will eventually get a turn.
+
+But just basing it on priority may not be enough?
+
+Could we try to detect deadlock risk?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Get to the Choppa}
+
+The thread that's unblocked is marked as ready to run again.\\
+\quad Moved to ready queue?
+
+And at this point it is a scheduling decision: which thread continues execution. 
+
+But we knew that from doing all this from the application developer point of view.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Carry On Then}
+
+When a thread is unblocked it resumes its execution at the return of the system call and will proceed as expected.
+
+That was easier than expected!
+
+\end{frame}
+
+\begin{frame}
+\frametitle{RW Locks}
+
+Previously: build up the RW lock using combo of semaphores/mutex.
+
+
+It's likely more efficient to have a self-contained construct that meets the goal.
+
+A simple counter is probably insufficient. Why?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Counter}
+
+If the counter is currently 1, is that a reader or a writer thread?
+
+So let's have two counters, shall we? One for readers and one for writers.
+
+But things get interesting depending on whether you care about writer priority.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Equality for All}
+
+How should this work if we don't give priority to either side?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Two Counters?}
+
+At first we might consider two counters; one for readers and one for writers. 
+
+If the readers counters is 7, is that seven readers currently in the room or seven readers waiting to enter? 
+
+It's hard to know and we'll need some more accounting.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{I have a cunning plan...}
+
+We talked about the light bulb analogy for the way of understanding the reader-writer lock...
+
+\begin{center}
+	\includegraphics[width=0.2\textwidth]{images/idea.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Use the Light Bulb}
+
+Idea: a boolean variable that says whether the lights are on. 
+
+Then a counter could be used to keep track of the number of readers currently in the room. 
+
+The reader-writers lock can have associated reader and writer queues. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Reader Does What?}
+
+Reader: try to set light switch from 0 to 1 with TAS.
+
+If they succeeded, they're the first reader: proceed.
+
+If they failed, why? Readers or writers?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Reader Does What?}
+
+When the reader is done, decrement.
+
+If it falls to zero, unblock a writer if one waiting...\\
+\quad Otherwise set light switch to 0.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Writer Does What?}
+
+If a writer wants to enter the room, try to change the light switch from 0 to 1. 
+
+If the writer succeeds, it can proceed. 
+
+If it fails, block the writer. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Writer Does What?}
+
+When the writer is done, unblock either all waiting readers or a writer. 
+
+
+Note that it's \textit{all} the readers!
+
+Can we prioritize writers here?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Priority to Writers}
+
+Yes, writers always choose writers at the end.
+
+There is a risk of starvation -- is that okay?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Writer Priority}
+
+That's not quite what we wanted. 
+
+Goal: when a writer is waiting, no new readers are allowed to enter the room. 
+
+How would we go about that? 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Writer Priority}
+
+When a reader wants to enter the room, take a look at the state of the waiting queue for writers. 
+
+If there is one, even if we would normally let the reader proceed, block the reader thread.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/sorcery.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Is This Atomic?}
+
+The logic requires us to try to change the light switch and also to maybe modify the counter and then decide based on that.
+
+That's not atomic!
+
+We may need a mutex internally here.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{On the Right Track?}
+
+ We discussed the implementation of a RW spinlock in Linux:
+
+\begin{center}
+	\begin{tabular}{l|l|l}
+		\textbf{Counter} & \textbf{Flag} & \textbf{Interpretation}                                     \\\hline
+		0                & 1             & The spinlock is released and available.                     \\
+		0                & 0             & The spinlock has been acquired for writing.                 \\
+		$n$ ($n > 0$)    & 0             & The spin lock has been acquired for reading by $n$ threads. \\
+		$n$ ($n > 0$)    & 1             & Invalid state.                                              \\
+	\end{tabular}
+\end{center}
+
+I'd say this validates our idea for how to implement RW Locks...
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Condition Variable}
+
+Remember: different semantics...
+
+Lost-wakeup problem, but also paired with a mutex.
+
+When a wait happens, the thread must be holding a mutex.
+
+Blocked for sure; release the mutex.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Signal or Broadcast}
+
+Signal may unblock a thread but it needs the mutex to continue.
+
+Broadcast the same, but many threads...\\
+\quad Each of which still needs the mutex!
+
+\end{frame}
+
+\begin{frame}
+\frametitle{No Internal Counter}
+
+Condition variables don't have or need an internal counter.
+
+Yes, the lost-wakeup problem does exist but it's part of the spec.
+
+It's not just a semaphore with broadcast.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{No Internal Counter}
+
+In many ways it would be wrong to have such a counter.
+
+We cannot use a semaphore as the basis for a condition variable.
+
+But this is simpler anyway so why would we want to?
+
+\end{frame}
 
 \end{document}
 

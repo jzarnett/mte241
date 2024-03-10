@@ -1,565 +1,656 @@
 \input{configuration}
 
-\title{Lecture  24 --- Real-Time Scheduling Algorithms }
+\title{Lecture 24 --- Concurrency: Synchronization/Atomicity }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
-  University of Waterloo}
+	University of Waterloo}
 \date{\today}
 
 
 \begin{document}
 
 \begin{frame}
-  \titlepage
-
- \end{frame}
-
-
-\begin{frame}
-\frametitle{Onward Then}
-
-We talked about what makes scheduling for real-time systems different.
-
-We already covered timeline scheduling.
-
-Let's go back to the uniprocessor world to start...
+	\titlepage
 
 \end{frame}
 
 
 \begin{frame}
-\frametitle{Earliest Deadline First}
+	\frametitle{Synchronization}
 
-The earliest deadline first algorithm is, presumably, very familiar to students. 
+	If a computer only ever did exactly one thing at a time we would have no concurrency and therefore no concurrency (co-ordination) problems.
+
+	A system with multiple processes or multiple threads will have concurrency.
+
+	If the system is multicore, we can have parallelism.
+
+	Either or both of these can lead to various problems.
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Synchronization}
+
+	The author of an application does not decide when a thread runs and when a thread switch will occur.
+
+	These are things the operating system will decide.
+
+	The operating system does not usually give much thought to whether it is a convenient or inconvenient time to run a given thread.
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Synchronization}
+
+	The common English usage of the word ``synchronization'' refers to making two or more things happen at exactly the same time.
+
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{images/synchronize-watches.jpg}
+	\end{center}
+
+	Synchronization in the computer sense is more general:\\
+	\quad Some relationship between events: before, during, after.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Olympic Synchronization}
+
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/baton-handoff.jpg}
+		\includegraphics[width=0.5\textwidth]{images/skiing.jpg}
+	\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Serialization}
+
+	\alert{Serialization}: some sort of order of events.
+
+	Certainty that Event $A$ takes place before Event $B$.
+
+	Example: a thread or process that \texttt{wait}s on another.
+
+	Merge sort: the merge thread to wait for the sorting threads to finish.
+
+	Thus the sorting (event $A$) must take place before the merging (event $B$).\\
+	\quad Or we could phrase it that $B$ must happen after $A$.
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Mutual Exclusion}
+
+	\alert{Mutual exclusion}: events $C$ and $D$ must not happen at the same time.
+
+	IPC: an area of memory that is shared between two processes.
+
+	If two processes can write to this area, there is some possibility that they both try to access the same place at the same time.
+
+	If we have mutual exclusion, we are certain that $P_{1}$ writing to the shared area (event $C$) does not happen at the same time as $P_{2}$ tries to read it (event $D$).
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Serialization through Messages}
+
+	Suppose we have two people, Alice and Bob\\
+	\quad They work at the Springfield Nuclear Power Plant in Sector 7G.
+
+	They work in separate offices and cannot easily see one another.
+
+	Alice works the day shift and Bob works the night shift.
+
+	Due to safety regulations, Alice cannot go home until Bob has arrived.
+
+	This is a situation where we would like serialization: the event of Bob's arrival must take place before the event of Alice's departure.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Serialization through Messages}
+
+	How can we get such behaviour?
+
+	Simple solution: Alice won't leave until she gets a call from Bob.
+
+	Bob doesn't call until he's arrived at the office.
+
+	This is the sort of thing we do in real life often: ``Text me when you get here''.
+
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Sequential and Concurrent Events}
+
+	If we are certain that Bob arrives before Alice departs, we can say that these events are \alert{sequential}, because we know the order of events.
+
+	At some point during the workday, Alice ate lunch, and at some point before work, Bob ate lunch.
+
+	But we have no idea who ate lunch first, so we say they ate lunch \alert{concurrently}.
+
+	The formal, strict definition of concurrent is: two events are concurrent if we cannot tell by looking at the program which will happen first.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Concurrent Events}
+
+	In common parlance, when we say something happened concurrently, it means they happened at the same time (Alice and Bob both had lunch at 12:00).
+
+	Concurrency is not the same as saying that they happened at the exact same time; it's saying that we do not know (and cannot guarantee) an order of events.
+
+	It's possible that Alice had lunch at 12:00 and Bob had lunch at 13:00 or they both ate at 12:00 or Alice had lunch at 13:30 and Bob had lunch at 12:15.
+
+	We do not know.
+
+	The order of concurrent events may change on two runs of the program; this is what we call \alert{nondeterminism}.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Non-Deterministic Programs}
+
+	In a non-deterministic program, we cannot tell just by looking at the program what the execution order would be.
+
+	If we have two concurrent events: \\
+	\quad One in which the program prints ``1'' to the console; and\\
+	\quad One in which the program prints ``2'' to the console.
+
+	These could happen in any order.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Non-Deterministic Programs}
+
+	So we might see the output as ``12'' or ``21''.
+
+	Which one will happen? Without some form of co-ordination, it could be either.
+
+	If ``12'' is the correct output but ``21'' occurs only very rarely, finding the cause and fixing it might be very painful.
+
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Heisenbugs}
+
+	This is, what is referred to as a ``Heisenbug''.
+
+	This has nothing to do with the ``Breaking Bad'' TV show.
+
+	\begin{center}
+		\includegraphics[width=0.3\textwidth]{images/heisenberg.jpg}
+		\includegraphics[width=0.1891\textwidth]{images/werner-heisenberg.jpg}
+	\end{center}
+
+	It comes from Werner Heisenberg and his scientific principle of uncertainty.
+
+	The Heisenbug is frustrating because the harder we try to track it down, the less likely it is to occur.
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Shared Data and Atomic Operations}
+	We noted earlier that the need for co-ordination in inter-process communication arises from the fact that some area of memory is shared.
+
+	We also know that all the threads of a process share the same data:.
+
+	Simple example of a shared variable \texttt{x} is manipulated by two threads $A$ and $B$:
+
+	\begin{multicols}{2}
+		\textbf{Thread A}
+		\begin{verbatim}
+	A1. x = 5
+	A2. print x
+	\end{verbatim}
+		\columnbreak
+		\textbf{Thread B}
+		\begin{verbatim}
+	B1. x = 7
+	
+	\end{verbatim}
+	\end{multicols}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Analyzing the $A$ and $B$ Example}
+
+	This is non-deterministic code.
+
+	There is no co-ordination mechanism here so we cannot say what order these statements will occur.
+
+	Some possible outcomes are:\\
+	\quad 5 is printed out and is the final value;\\
+	\quad 7 is printed out and is the final value; or\\
+	\quad 5 is printed out and 7 is the final value.
+
+	Note that there is no way we can print out 7 and get a final value of 5.
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Interrupts}
+
+	We do not even need multiple threads to have a concurrency problem; just having interrupts in the system is sufficient.
+
+	Consider an application that is used to count occurrences of some event.
+
+	We will store the count in a variable \texttt{count}.
+
+	We will provide some facility for the user to reset the counter (the reset button).
+
+	Each time we detect the event, we increment \texttt{count} with statement of \texttt{count++;} which seems like one single statement.
+
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Interrupts}
+
+	\texttt{count++;} is broken down into a series of smaller operations.
+
+	If \texttt{count} is 4 and we increment it:
+
+	\begin{enumerate}
+		\item Read the current value of \texttt{count} (read 4)
+		\item Add 1 to the value (now it's 5)
+		\item Write the changed value back to memory (write 5)
+	\end{enumerate}
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Interrupts}
+
+	Now imagine an interrupt comes at the worst possible time.
+
+	The interrupt is generated by the reset button: it's supposed to set the value of count to zero.
+
+	\begin{enumerate}
+		\item Read the current value of \texttt{count} (read 4)
+		\item Add 1 to the value (now it's 5)
+		\item INTERRUPT (control goes to the interrupt handler)
+		\item Write 0 to the variable (write 0)
+		\item END INTERRUPT (control returns to where it was before the interrupt)
+		\item Write the changed value back to memory (write 5)
+	\end{enumerate}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Interrupts}
+
+	The variable \texttt{count} shows 5, but it should show 0 (or 1).
+
+	The user pressed the reset button but the count did not reset!
+
+	If the reset interrupt had occurred before reading the variable $\rightarrow$ 1.
+
+	If the reset interrupt had occurred after writing the variable $\rightarrow$ 0.
+
+	The reset action is ``lost''.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Atomic Operation}
+
+	This problem arises because the instruction \texttt{count++} is really three things (read, add, write) and can be interrupted at any time.
+
+	When we are performing an operation that cannot be interrupted, we say it is \alert{atomic}: indivisible.
+
+	The word stems from Greek word \textit{atomos}, roughly ``not cut-able''.
+
+	Though there are usually some atomic operations available to us in a given system, we cannot be certain that all operations are indivisible.
+
+	In fact, the opposite is likely to be true!
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Atomic Operation}
+
+	Can we get atomic operations with serialization?
+
+	That is, can we make sure that the \texttt{count++} operation completes before the \texttt{count = 0} operation?
+
+	In this case there is no obvious order between the events: the user may press the reset button at any time, even if no event has just occurred.
+	
+\end{frame}
+
+\begin{frame}
+	\frametitle{Atomic Operation}
+
+
+	Similarly, the event may be detected even if the user is nowhere around and not going to press the reset button.
+
+	Our concept of serialization requires that there exists a correct order:\\
+	\quad First this, then that.
+
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Keep Calm...}
+
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{images/waityourturn.png}
+	\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Mutual Exclusion}
+
+	Here, where both orders are valid, we need the other approach: mutual exclusion (also called \alert{mutex}).
+
+	We do not know or enforce any particular order of event.
+
+	But: we don't have $>1$ threads trying to update a variable at the same time.
+
+	The action to reset \texttt{count} to zero would have to wait until the \texttt{count++} operation was completely finished (or vice versa).
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Put your Deerstalker Cap on}
 
 \begin{center}
-	\includegraphics[width=0.5\textwidth]{images/deadlines.jpg}
+	\includegraphics[width=\textwidth]{images/detectivepikachu.jpg}
 \end{center}
 
 \end{frame}
 
 
 \begin{frame}
-\frametitle{Earliest Deadline First}
+	\frametitle{Mutual Exclusions through Flags}
 
-Assignment due today, an assignment due next Tuesday, and an exam next month, then you may choose to schedule these things by their deadlines. 
+	So we have identified shared data as a potential source of error.
 
-Do the assignment due today first. 
+	A section of code that should be accessed by a maximum of one thread at a time is referred to as a \alert{critical section}.
 
-After completing an assignment, decide what to do next (probably the new assignment, but perhaps a new task has arrived in the meantime?) and start.
+	The purpose of mutual exclusion is to ensure that at most one thread is in the critical section at a time.
+	
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Mutual Exclusions through Flags}
+
+	If we ever have more than one thread in the critical section at a time, something has gone terribly wrong.
+
+	But on the other hand, the critical section is supposed to do something useful, so we cannot solve the problem by not allowing any thread to access it ever.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Critical Sections}
+
+	It is the responsibility of the programmer to identify what critical sections, if any, exist in the program, and to protect them with mutexes.
+
+	Some analysis tools may exist to identify shared data, but ultimately the best analysis tool is taking a careful look.
+
+	Critical sections should be as short as possible (but must enclose all shared data accesses).
+
+	The critical section is something that cannot be run in parallel, so it increases the magnitude of the $S$ term in Amdahl's Law.
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Mutual Exclusion with Flags}
+
+	Strategy: have a variable to indicate if the critical section is currently in use.
+
+	\begin{multicols}{2}
+		\textbf{Thread A}
+		\begin{verbatim}
+	A1. while ( turn != 0 ) {
+	A2.    /* Wait for my turn */
+	A3. }
+	A4. /* critical section */
+	A5. turn = 1;
+	\end{verbatim}
+		\columnbreak
+		\textbf{Thread B}
+		\begin{verbatim}
+	B1. while ( turn != 1 ) {
+	B2.   /* Wait for my turn */
+	B3. }
+	B4. /* critical section */
+	B5. turn = 0;
+	\end{verbatim}
+	\end{multicols}
+
+	Strict alternation!
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Strict Alternation}
+
+	First it is the turn of thread $A$, then the turn of thread $B$, then back to $A$, etc.
+
+	What if thread $A$ is to run more often than $B$?
+
+	If thread $B$ terminates then thread $A$ will be stuck forever because the variable \texttt{turn} will always be saying that it is thread $B$'s turn.
+
+	This solution is obviously not satisfactory.
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{A Second Approach}
+
+	\begin{multicols}{2}
+		\textbf{Thread A}
+		\begin{verbatim}
+	A1. while ( busy == true ) {
+	A2.    /* Wait for my turn */
+	A3. }
+	A4. busy = true;
+	A5. /* critical section */
+	A6. busy = false;
+	\end{verbatim}
+		\columnbreak
+		\textbf{Thread B}
+		\begin{verbatim}
+	B1. while ( busy == true ) {
+	B2.    /* Wait for my turn */
+	B3. }
+	B4. busy = true;
+	B5. /* critical section */
+	B6. busy = false;
+	\end{verbatim}
+	\end{multicols}
+
+	A boolean flag.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Boolean Flag}
+
+	The statement \texttt{while (busy == true)} is followed by \texttt{busy = true;}
+
+	These are two distinct steps: read of \texttt{busy} and write of \texttt{busy}.
+
+	A process switch could occur between the read and the write.
+
+	Then threads $A$ and $B$ will both be in the critical section at the same time!
+
+	This solution is also not satisfactory.
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Third Time's the Charm}
+
+	\begin{multicols}{2}
+		\textbf{Thread A}
+		\begin{verbatim}
+	A1. flag[0] = true;
+	A2. while ( flag[1] ) {
+	A3.    /* Wait for my turn */
+	A4. }
+	A5. /* critical section */
+	A6. flag[0] = false;
+	\end{verbatim}
+		\columnbreak
+		\textbf{Thread B}
+		\begin{verbatim}
+	B1. flag[1] = true;
+	B2. while ( flag[0] ) {
+	B3.    /* Wait for my turn */
+	B4. }
+	B5. /* critical section */
+	B6. flag[1] = false;
+	\end{verbatim}
+	\end{multicols}
+
+	An array of flags, then.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Array of Flags}
+
+	Once again, this strategy is defeated by an untimely process switch.
+
+	If statement A1 sets \texttt{flag[0]} to true and there is a switch to thread $B$, setting \texttt{flag[1]} to true, now both processes are stuck.
+
+	Neither can advance, because each is waiting for the other.
+
+	This is, perhaps, slightly better than two threads in the critical section, but we have two threads that are permanently stuck now.
+
+	This is also not satisfactory.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Disabling Interrupts}
+
+	The attempts at solution we have attempted so far have all been foiled by an untimely process switch, which will be triggered by an interrupt.
+
+	This presents a possible solution: disabling interrupts.
+
+	Disabling interrupts is a crude solution.
+
+	\begin{center}
+		\includegraphics[width=0.3\textwidth]{images/ignorefirealarm.jpg}
+	\end{center}
 
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Earliest Deadline First}
+	\frametitle{Disabling Interrupts}
 
-The principle is the same for the computer. 
+	While interrupts are disabled, the system will be unable to respond to user input or other events (e.g., a fire alarm or detection of an incoming missile!).
 
-Choose the task with the soonest deadline; if there is a tie, then random selection between the two will be sufficient (or other criteria may be used). 
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/thisisfine.png}
+	\end{center}
 
-\end{frame}
-
-\begin{frame}
-\frametitle{Earliest Deadline First}
-
-If there exists some way to schedule all the tasks such that all deadlines are met, this algorithm will find it. 
-
-If a task is executing and another task arrives with a sooner deadline, the currently executing task should be suspended and the new task scheduled. 
-
-This may mean a periodic task being preempted by an aperiodic/sporadic task.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Implementing EDF}
-
-A priority queue is reasonable...
-
-Sort by deadline? Does that account for task type?
-
-Ah, but what if we're overloaded...?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Deadline Interchange}
-
-This deadline-based approach is subject to a problem that very much resembles priority inversion.
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/takeit.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Deadline Interchange}
-Suppose a task $A$ has locked a mutex and then a new task $B$ arrives that also needs that mutex and has a sooner deadline than $A$. 
-
-Task $A$ would therefore be preempted in favour of $B$, at least until $B$ gets blocked. 
-
-If there are other tasks $C, D, E$... that also want this resource, $A$ could be waiting a long time to proceed.
-
-Even if $B$ misses its deadline!
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Deadline Interchange}
-
-The best way to make that happen would be to assign to $A$ a new deadline, specifically the soonest deadline from all the tasks waiting for it. 
-
-Doesn't that look like priority inheritance?
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Least Slack First}
-
-A similar algorithm to earliest deadline first, is least slack first.
-
-\begin{center}
-	\includegraphics[width=\textwidth]{images/slack.png}
-\end{center}
+	If an error is encountered in the critical section and the program is terminated, the system is effectively stuck because no other program will be able to run.
 
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Least Slack First}
+	\frametitle{Disabling Interrupts}
 
-\alert{Slack}: how long a task can wait before it must be scheduled to meet a deadline.
+	If we have multiple processors the disabling interrupts will not be sufficient.
 
-If a task will take 10~ms to execute and its deadline is 50~ms away, then there are (50 - 10) = 40~ms of slack time remaining.
+	But maybe we're on the right track by getting hardware involved.
 
-Start the task before 40~ms are expired if we want to be sure that it will finish. 
+
+	The hardware designers were aware of the problem and have kindly provided a facility to help us out: the \alert{Test-and-Set} instruction.
+
 
 \end{frame}
 
-\begin{frame}
-\frametitle{Least Slack First}
-This does not mean, however, that we necessarily want to wait 40~ms before starting the task (even though many students tend to operate on this basis). 
+\begin{frame}[fragile]
+	\frametitle{Test-and-Set}
 
-All things being equal, we prefer tasks to start and finish as soon as possible. 
+	The Test-and-Set instruction is a special machine instruction that is performed in a single instruction cycle and is therefore not interruptible.
 
-It does, however, give us an indication of what tasks are in most danger of missing their deadlines and should therefore have priority.
+	It is therefore an atomic read and write.
 
-\end{frame}
+	Its semantics in C are:
 
-\begin{frame}
-\frametitle{Rate-Monotonic Scheduling}
-
-The name doesn't explain this one super well.
-
-EDF and LSF don't really consider priorities.
-
-Rate-Monotonic scheduling is based around the idea of basing priority on the period -- tasks that execute more often are given higher priority.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Not Quite Optimal}
-
-This algorithm is, however, not perfect.
-
-It's possible to fail to schedule things in such a way that all tasks meet their deadlines even if utilization is less than 1.
-
-Example: $n$ periodic tasks with the form $(C_{k}, \tau _{k})$: (1, 4), (3, 7), and (3, 10).
+	\begin{verbatim}
+boolean test_and_set( int* i ) {
+  if ( *i == 0 ) {
+    *i = 1;
+    return true;
+  } else {
+    return false;
+  }
+}
+\end{verbatim}
 
 \end{frame}
 
-\begin{frame}
-\frametitle{That's Not Supposed to Happen}
+\begin{frame}[fragile]
+	\frametitle{Test-and-Set}
+
+	Now let us put it into action.
+
+	\begin{verbatim}
+while ( !test_and_set( busy ) ) {
+   /* Wait for my turn */
+}
+/* critical section */
+busy = 0;
+\end{verbatim}
 
 
-Utilization is less than 1 so it should be possible to solve this one: ($1/4 + 3/7 + 3/10 = 137/140$). 
-
-Earliest Deadline First would have been able to schedule this such that it met all deadlines. 
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/deer.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Take the Test}
-
-To figure out if it's possible to schedule things, there's a test. 
-
-It turns out that it's very difficult to do this dynamically in real-time, so we have to use a less-precise formula.
-
-\begin{center}
-	$\Pi^{n}_{k=1}( 1 + \dfrac{c_k}{\tau _k}) \leq 2$.
-\end{center}
-
-Remember: uncertain success is not certain failure.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Deadline Monotonic}
-
-A variant of this is deadline-monotonic scheduling, in which case priority is assigned based on deadlines.
-
-The task with the shortest deadline is assigned the highest priority.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Aperiodic Servers}
-
-\begin{center}
-	\includegraphics[width=0.3\textwidth]{images/witchking.jpg}
-\end{center}
-
-A task with a soft deadline is challenging to schedule here, because it's hard for the scheduler to know whether a task is soft- or hard-real time.
-
-One possibility is to say that aperiodic or soft-deadline tasks are always lower in priority than any firm- or hard-real time task.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Polling Server}
-
-A polling server is, in its own way, a little container in which aperiodic tasks occur.
-
-\begin{center}
-	\includegraphics[width=0.3\textwidth]{images/redhour.jpg}
-\end{center}
-
-The server is itself a hard-deadline periodic task with a fixed execution time budget and a deadline equal to its period.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Periodic Server}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/periodic-server.jpg}
-\end{center}
-
-During the execution time of the server task, the aperiodic tasks waiting will run sequentially.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Too Much or Too Little}
-
-If there are too many tasks or they otherwise take too long and they do not finish, the aperiodic tasks just carry over to the next time the server runs. 
-
-If there are not enough aperiodic tasks and there's time left over, just end the server task execution (throw away the extra time) and let something else run.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Periodic Server Analogy}
-
-\begin{center}
-	\includegraphics[width=0.75\textwidth]{images/lunchtime.jpg}
-\end{center}
-
-Do you have to use your lunch break for eating lunch?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Multiple Servers}
-
-We can have different servers that work on different kinds of tasks.
-
-In the lunch break analogy, what if there's lunch breaks and coffee breaks?
-
-\hfill \includegraphics[width=0.3\textwidth]{images/duo-peeking.png}
+	(Both $A$ and $B$ would be the same, so only one copy is shown)
 
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Does It Work?}
-Polling server does not affect the ability of the system to complete the hard-deadline tasks.
+	\frametitle{Mutual Exclusion Success!}
 
-The background server's behaviour is predictable!
+	Finally, we have something that will provide mutual exclusion without the risk that the threads will all get stuck because each thinks another is in the critical section.
 
-Downside: response time for aperiodic tasks.
+	This is good, but can be improved.
 
-\end{frame}
+	The \texttt{while} loop that is constantly checking the value with the Test-and-Set instruction is an example of \alert{busy-waiting}.
 
-\begin{frame}
-\frametitle{Variant: Deadline-Deferrable}
-
-Improved version: deferrable server.
-
-Instead of throwing away the time budget if it's unused at the end of the period and there's nothing to do, save that leftover time.
-
-Either the time is used up or eventually expires.
+	A given thread is constantly checking and checking and checking the instruction, and this is a waste of time and effort.
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Deferrable Server}
-Finished with 40\% budget remaining?
+	\frametitle{Busy-Waiting}
 
-Polling server: Throw it away.\\
-\quad... Back to work even if lunch finished in 45 minutes; 15 mins lost.
+	It is less wasteful of resources and effort if the \texttt{while} loop contains some instructions saying it should wait a little while before checking again.
 
-Deferrable server: Keep it until the end of the period.\\
-\quad Save those 15 minutes for later in the day, but can't carry over to tomorrow.
+	Serialization was achievable through messages; and they can be used to get mutual exclusion. This is the topic to be examined next.
 
-\end{frame}
-
-\begin{frame}
-\frametitle{Reminder: Consult a Lawyer}
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/attorneys.jpg}
-\end{center}
-
-Note that none of this is a substitute for legal advice from an employment lawyer about the rules \& regulations around legally required breaks during the workday.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Variant 2: Deadline-Sporadic}
-
-Next idea: sporadic server!
-
-
-Instead of losing the extra unused period, it can be saved, indefinitely. 
-
-The replenishment of the budget forces execution to be spread out more evenly.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Why Does Spreading It Matter?}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/balanced.jpg}
-\end{center}
-
-\begin{center}
-	\includegraphics[width=0.7\textwidth]{images/ttc.png}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Spreading It Out}
-
-Execution time for the server is broken down into chunks.
-
-When a chunk is depleted, it's scheduled for replenishment in the future.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Replenishment is Familiar Maybe}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/duolingo-hearts.png}
-	\includegraphics[width=0.4\textwidth]{images/aws.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Variant 3: Deadline Exchange Server}
-Like Deadline-Deferrable server, but simplifies tracking the chunks.
-
-Any remaining execution time is discarded when the request queue is empty and the wait for replenishment is based on the last chunk of execution time used.
-
-This is simpler to implement since there's only ever one replenishment to track and the replenishment is always the full quota. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{But Does it Work?}
-
-Simulation studies show that different forms of the period server approach are effective for different workloads.
-
-Remember: it's possible to have different servers configured for different aperiodic tasks to give the best balance of prioritization and performance.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Multiprocessor Math}
-
-Now it's time to get out of uniprocessor and into multiprocessor scheduling.
-
-Task $\rightarrow$ things that need doing.
-
-Job $\rightarrow$ specific instance of the task to run.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Three Relevant Questions}
-
-Is preemption permitted?
-
-Is job migration permitted?
-
-Is job parallelism permitted?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{This Is Mine And You Can't Have It}
-
-Dedicated CPUs are an option, possibly with manual assignment. 
-
-That makes it more like the uniprocessor situation.
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/yearsofexperience.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Computer, Please Help}
-Asking the computer to do it? This is one of those NP-Complete problems.
-
-Doing so in advance for an all-periodic system is doable.
-
-For systems with sporadic and aperiodic tasks, the cost of doing this math might be prohibitive at runtime. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Migration}
-
-No migration does mean that there is a possibility that tasks are failing to meet their deadlines on CPU $X$ for lack of CPU time...
-
-Even though CPUs $Y$ and $Z$ have plenty of idle capacity.
-
-Things are more interesting if there is migration allowed.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{It's Free Real Estate}
-
-Simple analysis: there's no cost to migrating a task from one CPU to another.
-
-We know that's not true just because of cache misses.
-
-So, do we allow migration or not?
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Back Up a Step}
-
-Option 1: Global scheduling; all tasks go in one queue.
-
-Option 2: \alert{Partitioned} scheduling; tasks statically assigned to a CPU.
-
-Research shows this approach may only allow 50\% utilization.
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/wasted.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Next Idea?}
-
-What about half-and-half? \alert{Semi-partitioned} scheduling.
-
-Some tasks are fixed to specific processors, some may move.
-
-Intuitively this seems it might work.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Beg Your Pardon M'Lord?}
-
-None of these approaches are actually solutions that ensure we have an optimal scheduling for multicore system. 
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/trueking.jpg}
-\end{center}
-
-What we need is a different approach...
-
-\end{frame}
-
-\begin{frame}
-\frametitle{P-Fairness}
-
-The P in P-Fair scheduling stands for ``proportional'' and the goal is to allocate CPU time in such a way that tasks make progress at steady rates.
-
-An application can request time $x_i$ time units every $y_i$ time quanta (time slices).
-
-The system guarantees over any $T$ quanta ($T>0$) then a continuously-running application receives between $\lfloor x_i/y_i \times T\rfloor$ time and $\lceil x_i/y_i \times T\rceil$ quanta of service.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{P-Fair}
-
-The term \alert{lag} is used to reflect the difference between the allocated CPU time and the time the task should have.
-
-Lag greater than 0? Needs more CPU time.
-
-Lag less than 0? Has had more than it should have.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Task Classification}
-
-A task is \alert{urgent} if it has lag above 0;
-
-A task is \alert{tnegru} is its lag is negative.
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/notaword.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{P-Fair Algorithm}
-
-Then the scheduling algorithm consists of three parts:
-\begin{enumerate}
-	\item Schedule all urgent tasks.
-	\item Do not schedule tnegru tasks.
-	\item Schedule other tasks in order of highest lag to lowest until capacity is filled.
-\end{enumerate}
-
-Goal: keep the lag between $-1$ and $+1$ for all tasks!
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Analysis of P-Fair}
-
-Each task is broken down into small slices and each subtask executes on the CPU when it can, before its deadline.
-
-Wasted spaces is limited.
-
-A P-Fair schedule is always periodic.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Analysis of P-Fair}
-
-There exist a number of papers building on the P-Fair approach to address some of its shortcomings and adapt it to some more scenarios.
-
-It does require a lot of computation at each timeslice.
-
-Is it worth it? It's a lot better than losing 50\% of capacity...
 
 \end{frame}
 

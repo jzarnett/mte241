@@ -1,6 +1,6 @@
 \input{configuration}
 
-\title{Lecture 29 --- Synchronization Patterns }
+\title{Lecture 29 --- Deadlock }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
@@ -15,850 +15,602 @@
 
 \end{frame}
 
-\begin{frame}
-	\frametitle{Synchronization Patterns}
-
-
-	There are a number of common synchronization patterns that occur frequently and we can use semaphores to solve them.
-
-	These synchronization patterns are ways of co-ordinating threads or processes.
-
-	We have already examined serialization and mutual exclusion; there are more.
-
-	Throughout this section we will use pseudocode and something like ``Statement A1'' could be any valid statement in the program.
-
-\end{frame}
-
 
 \begin{frame}
-	\frametitle{So Text Me, Maybe}
+	\frametitle{Deadlock!}
 
 	\begin{center}
-		\includegraphics[width=0.9\textwidth]{images/texting.jpeg}
+		\includegraphics[width=\textwidth]{images/deathstroke.jpg}
 	\end{center}
 
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Signalling}
-
-	Recall from earlier the example with Alice and Bob at the power plant.
-
-	This was signalling.
-
-	Signalling can be used in general as a way of indicating that something has happened.
-
-	Suppose we have a semaphore named \texttt{sem}, initialized to 0.
-
-	\begin{multicols}{2}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. Statement A1
-	2. post( sem )
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. wait( sem )
-	2. Statement B2
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Analysis of Signalling}
-
-	If $B$ gets to the \texttt{wait} statement first, it will be blocked (as the semaphore is 0) and cannot proceed until someone posts on that semaphore.
-
-	When $A$ does call \texttt{post}, then $B$ may proceed.
-
-	If instead $A$ gets to the \texttt{post} statement first, it will post and the semaphore value will be 1.
-
-	Then, when $B$ gets to the \texttt{wait} statement, it can proceed without delay.
-
-	Regardless of the actual order that the threads run, we are certain that statement A1 will execute before statement B2.
+	Hmm... no... not quite...
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Rendezvous}
+	\frametitle{Okay, This Time It's Deadlock!}
 
 	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/nasa-rendezvous.jpg}
+		\includegraphics[width=\textwidth]{images/deadpool.jpg}
 	\end{center}
 
+	No? Whoops.
 
 \end{frame}
 
 
-\begin{frame}[fragile]
-	\frametitle{Rendezvous}
+\begin{frame}
+	\frametitle{This One Really Is Deadlock!}
 
-	The rendezvous is an expansion of the signalling pattern so that it works both ways.
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/deadlock.jpg}
+	\end{center}
 
-	Two threads should be at the same point before either of them may proceed (they ``meet up'').
+\end{frame}
 
-	Suppose we have:
+\begin{frame}
+	\frametitle{Skeptical Dog Says:}
 
-	\begin{multicols}{2}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. Statement A1
-	2. Statement A2
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. Statement B1
-	2. Statement B2
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{images/skeptical-dog.jpg}
+	\end{center}
 
+	Really. He's an Image Comics character. He first appeared in 1992.
+
+	I think he's an off-brand Wolverine.
+
+	I don't know either.
+
+
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{The Dining Philosophers Problem}
+
+	The dining philosophers problem was also proposed by Dijkstra in 1965.
+
+	The problem can have $n$ philosophers, but problem is typically described as 5.
+
+	These five smart individuals spend their lives thinking, but every so often, they need to eat. They share a table, each having his or her own chair.
+
+	In the centre of the table is a bowl of rice, \& it is laid with 5 single chopsticks.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{The Dining Philosophers Problem}
+
+	\begin{center}
+		\includegraphics[width=0.6\textwidth]{images/philosopher-table.png}
+	\end{center}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Dinner Time}
+
+	When a philosopher wishes to eat, she sits down at her designated chair, and attempts to pick up the two chopsticks that are nearest.
+
+	Philosophers are polite and therefore do not grab a chopstick out of the hands of a colleague.
+
+	When a philosopher has both chopsticks, she may eat rice, and when she is finished, she puts down the chopsticks and goes back to thinking.
 
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Rendezvous}
+	\frametitle{Dining with Semaphores}
 
-	The desirable property is that A1 should take place before B2 and that B1 should take place before A2.
+	Suppose then that semaphores are the method for managing things.
 
-	As each thread must wait for the other, two semaphores will be needed: one to indicate that $A$ has arrived and one for $B$.
+	Because only one person can be in possession of a chopstick at a time, each chopstick may be represented by a binary semaphore.
 
-	We will assign them the names \texttt{aArrived} and \texttt{bArrived} and initialize both to 0.
+	When the philosopher sits down he attempts to acquire the left chopstick, then the right, eats, and puts the chopsticks down.
 
-\end{frame}
+	This works fine, until all philosophers sit down at the same time. Each grabs the chopstick to his or her left.
 
-\begin{frame}[fragile]
-	\frametitle{Rendezvous Solution 1}
+	None of them are able to acquire the chopstick to his or her right (because someone has already picked it up).
 
-	A first attempt at a solution:
-
-	\begin{multicols}{2}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. Statement A1
-	2. wait( bArrived )
-	3. post( aArrived )
-	4. Statement A2
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. Statement B1
-	2. wait( aArrived )
-	3. post( bArrived )
-	4. Statement B2
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
+	None of the philosophers can eat; they are all stuck. Deadlock.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Rendezvous Solution 1 Analysis}
+	\frametitle{Deadlock at the Dinner Table}
 
-	The problem here should be obvious: thread $A$ gets to the \texttt{wait} statement and will wait until $B$ posts its arrival before it can proceed.
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{images/olivertwist.jpeg}
+	\end{center}
 
-	Thread $B$ gets to its \texttt{wait} statement and will wait until $A$ posts its arrival before it will proceed.
+	This example makes it more clear why we call a situation where a thread never gets to run ``starvation''.
 
-	Unfortunately, each thread is waiting for the other to post and neither of them can get to the actual \texttt{post} statement because they are both blocked.
+	If a philosopher is never able to get both chopsticks, they won't eat.
 
+	Though I am not an expert on biology, I have it on good authority that people who do not eat anything end up eventually starving to death.
+
+	Even philosophers.
 
 \end{frame}
+
+\begin{frame}
+	\frametitle{Saving the Philosophers}
+
+	One thing that would guarantee that this problem does not occur is to protect the table with a binary semaphore.
+
+	This would allow exactly one philosopher at a time to eat, but at the very least, deadlock and starvation would be avoided.
+
+	Although this works, it is a suboptimal solution.
+
+	There are five seats and five chopsticks. Yet only one person is eating at a time.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{No, the Pigeons are not for Eating}
+
+	What if we limit the number of philosophers at the table concurrently to four?
+
+	The pigeonhole principle applies here: if there are $k$ pigeonholes and more than $k$ pigeons, at least one pigeonhole must have at least two pigeons.
+
+	Thus, at least one of the four philosophers can get two chopsticks.
+
+	Implementation is easy: a general semaphore with a max and initial value of 4.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Invite a Leftie}
+
+	\begin{center}
+		\includegraphics[width=0.4\textwidth]{images/leftorium.jpg}
+	\end{center}
+
+	The problem above occurs because every philosopher tries to pick up the left chopstick first.
+
+	If some of them try to pick up the left and some pick up the right first, then deadlock will not happen.
+
+	This problem is a great basis to launch into a discussion about deadlock...
+
+\end{frame}
+
+
 
 \begin{frame}
 	\frametitle{Deadlock}
 
-	Neither thread can proceed.
+	An informal definition of deadlock: all processes being ``stuck''.
 
-	The situation can never be resolved, because there is no external force that would cause one or the other to be unblocked.
+	A more formal definition: ``the \textit{permanent} blocking of a set of processes that either compete for system resources or communicate with each other''.
 
-	This is a situation called \alert{deadlock}, and it is a subject that will receive a great deal of examination later on.
+	It may be possible for all processes to be stuck temporarily, because one is waiting for some event (e.g., a read from disk).
 
-	For now, an informal definition is: all threads are permanently stuck.
+	This situation will resolve itself and is not deadlock.
 
-	Obviously, this is undesirable.
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Deadlock}
+	A set of processes is truly deadlocked when each process in the set is blocked on some event that can only be triggered by another blocked process in the set.
+
+	In this case it is permanent, because none of the events can take place.
+
+	A deadlock involves some conflicting needs for resources by two or more processes.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{A Traffic Deadlock}
+
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/car-deadlock.png}
+	\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{A Traffic Deadlock}
+
+	Whichever vehicle arrives at the stop sign first has the right of way.
+
+	If two vehicles arrive at the same time, a vehicle yields the right of way to the vehicle on its right.
+
+	Okay, as long as 3 or fewer vehicles come to the stop sign at the same time.
+
+	If all four vehicles arrive at the same time, we have the potential for a problem.
+\end{frame}
+
+\begin{frame}
+	\frametitle{A Traffic Deadlock}
+
+	It is not a deadlock yet, because none of the processes are stuck yet.
+
+	If all the drivers believe they should go first, we get the situation on the right, and we actually do have deadlock.
+
+	This is very much like the dining philosophers problem; deadlock occurs if everyone tries to do the same thing at the same time.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Deadlocks}
+
+	Of course, for deadlock to occur, we do not have to have symmetric processes trying to do the same thing at the same time.
+
+	Given two semaphores, \texttt{a} and \texttt{b}, and two processes, we can have the following code that will sometimes, but not always lead to deadlock.
+
+	If thread $P$ locks \texttt{a} and then there is a process switch, and \texttt{b} is locked by $Q$, both threads will be stuck.
+
+	Each has one resource the other needs, but they are both blocked.
+
 
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Rendezvous Solution 2}
+	\frametitle{Deadlock of $P$ and $Q$}
+	It's not always this easy to see:
 
-	What if instead, the threads reverse the order and post first before waiting?
 
 	\begin{multicols}{2}
-		\textbf{Thread A}
+		\textbf{Thread P}
 		\begin{verbatim}
-	1. Statement A1
-	2. post( aArrived )
-	3. wait( bArrived )
-	4. Statement A2
+	 1. wait( a ) 
+	 2. wait( b )
+	 3. [critical section]
+	 4. signal( a )
+	 5. signal( b )
   \end{verbatim}
 		\columnbreak
-		\textbf{Thread B}
+		\textbf{Thread Q}
 		\begin{verbatim}
-	1. Statement B1
-	2. post( bArrived )
-	3. wait( aArrived )
-	4. Statement B2
+	 1. wait( b ) 
+	 2. wait( a )
+	 3. [critical section]
+	 4. signal( b )
+	 5. signal( a )
   \end{verbatim}
 	\end{multicols}
-	\vspace{-2em}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Rendezvous Solution 2 Analysis}
-
-	This solution works: if $A$ gets to the rendezvous point first, it posts its arrival and waits for $B$.
-
-	If $B$ gets there first, it posts its arrival and waits for $A$.
-
-	Whichever gets there last will post and unblock the other, before it calls \texttt{wait}.
-
-	It will be able to proceed directly; the first thread to arrive already posted.
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Rendezvous Solution 3}
-
-	A variation on this can also work where only one thread posts first and the other thread posts second.
-
-	\begin{multicols}{2}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. Statement A1
-	2. wait( bArrived )
-	3. post( aArrived )
-	4. Statement A2
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. Statement B1
-	2. post( bArrived )
-	3. wait( aArrived )
-	4. Statement B2
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Rendezvous Solution 3 Analysis}
-
-	While this solution will not result in deadlock, it is somewhat less efficient than the previous: it may require an extra switch between processes.
-
-	As long as we are certain that deadlock will not occur, a solution is acceptable.
-
-	Nevertheless, the previous solution is provably better.
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Rendezvous Analysis}
+	\frametitle{Reusable and Consumable Resources}
+	We can generally classify a resource as either \alert{reusable} or \alert{consumable}.
 
-	What if we needed to add a third thread, C, to this rendezvous?
+	A reusable resource can be used by one process at a time, and is not depleted.
 
-	What would we have to change?
+	A process may lock the resource, make use of it, then release it such that other processes may acquire it.
 
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Rendezvous of 3 Threads}
-
-	Let's add C to the party:
-
-	\begin{multicols}{3}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. Statement A1
-	2. post( aArrived )
-	3. wait( bArrived )
-	4. wait( cArrived )
-	5. Statement A2
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. Statement B1
-	2. post( bArrived )
-	3. wait( aArrived )
-	4. wait( cArrived )
-	5. Statement B2
-  \end{verbatim}
-  		\columnbreak
-		\textbf{Thread C}
-		\begin{verbatim}
-	1. Statement C1
-	2. post( cArrived )
-	3. wait( aArrived )
-	4. wait( bArrived )
-	5. Statement C2
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-Does this work?
+	Processors, memory, files, semaphores are all examples of reusable resources.
 
 \end{frame}
-
 
 \begin{frame}
-\frametitle{Too Much Waiting}
+	\frametitle{Reusable and Consumable Resources}
 
-No -- this will also lead to a deadlock. 
+	A consumable resource is one that is created and destroyed upon consumption.
 
-A \texttt{post( aArrived )} unblocks one thread waiting for A...\\
-\quad But now there are two threads waiting for it!
+	If the user presses the ``Z'' key on the keyboard, this generates an interrupt and produces the ``Z'' character in a buffer.
 
-
-Analysis tool: look at the number of wait and post statements.\\
-\quad Here, they are not in balance.
+	A process that takes input will then consume that character (e.g., it goes into the \texttt{vi} editor window) and it is unavailable to other processes.
 
 \end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Rendezvous of 3 Threads, Again}
-
-	Let's try again to add C to the party:
-
-	\begin{multicols}{3}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. Statement A1
-	2. post( aArrived )
-	3. post( aArrived )
-	4. wait( bArrived )
-	5. wait( cArrived )
-	6. Statement A2
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. Statement B1
-	2. post( bArrived )
-	3. post( bArrived )
-	4. wait( aArrived )
-	5. wait( cArrived )
-	6. Statement B2
-  \end{verbatim}
-  		\columnbreak
-		\textbf{Thread C}
-		\begin{verbatim}
-	1. Statement C1
-	2. post( cArrived )
-	3. post( cArrived )
-	4. wait( aArrived )
-	5. wait( bArrived )
-	6. Statement C2
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-How about now?
-
-\end{frame}
-
 
 \begin{frame}
-\frametitle{Three, Being the Third Number...}
+	\frametitle{Conditions for Deadlock}
 
-This works! Our wait and post statements are balanced.
+	When a disaster happens, it is typically a result of a chain of things going wrong.
 
-You can imagine that the complexity increases if there are more threads... 
+	If any one of those things did not happen, the disaster would be averted.
 
-And adding thread D would mean changing A, B, C as well... Not ideal...
+	This is referred to as ``breaking the chain''.
 
 \end{frame}
 
+\begin{frame}
+	\frametitle{Conditions for Deadlock}
+	There are four conditions for deadlock:
+
+	\begin{enumerate}
+		\item \textbf{Mutual Exclusion}
+		\item \textbf{Hold-and-Wait}
+		\item \textbf{No Preemption}
+		\item \textbf{Circular-Wait}
+	\end{enumerate}
+
+
+	If the first three conditions are true, deadlock is possible, but deadlock will only happen if the fourth condition is fulfilled.
+
+
+\end{frame}
 
 \begin{frame}
-	\frametitle{Waiting Our Turn...}
+	\frametitle{Resource Allocation Graph}
 
 	\begin{center}
-		\includegraphics[width=0.9\textwidth]{images/waiting-in-line.jpg}
+		\includegraphics[width=0.50\textwidth]{images/rag1.png}
 	\end{center}
 
 \end{frame}
 
-
-\begin{frame}[fragile]
-	\frametitle{Mutual Exclusion}
-
-	We saw previously the motivation and concept of mutual exclusion through messages in the linked list example.
-
-	The general form in pseudocode is of course:
-
-	\begin{multicols}{2}
-		\textbf{Thread A}
-		\begin{verbatim}
-	1. wait( mutex )
-	2. critical section
-	3. post( mutex )
-  \end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	1. wait( mutex )
-	2. critical section
-	3. post( mutex )
-  \end{verbatim}
-	\end{multicols}
-	\vspace{-2em}
-
-
-\end{frame}
-
 \begin{frame}
-	\frametitle{Mutual Exclusion}
+	\frametitle{Resource Allocation Graph}
 
-	The mutex semaphore is originally initialized to 1.
+	If there are no cycles in the graph, no process in the system is deadlocked.
 
-	Whichever thread gets to the \texttt{wait} statement first will proceed immediately and not be blocked at all.
-
-	If the semaphore were initialized to 0 then neither thread could ever get to the \texttt{post} statement or ever get into the critical section (deadlock).
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Symmetric vs. Asymmetric Solutions}
-
-	Threads $A$ and $B$ are identical here.
-
-	This is a \alert{symmetric} solution.
-
-	It is easier to make predictions about the behaviour of the threads when they all do the same thing.
-
-	If the different threads have different sections of code, they are \alert{asymmetric}.
-
-	The symmetric solutions very often scale well.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Multiplex}
-	In addition to the binary semaphore, we also discussed the general semaphore.
-
-	If the general semaphore is initialized to $n$, then at most $n$ threads can be in the critical section at a time.
-
-	Example: restaurants have a certain number of tables and seats.
-
-	If more people wish to dine than there are seats available, those customers must wait until some seats become available (other customers leave).
-
-	Restaurants generally want to pack in as many seats as possible, but fire safety regulations set a maximum occupancy for a given space.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Multiplex}
-
-	Suppose that the system has a problem that when too many concurrent database requests are happening.
-
-	The queries become slow and eventually time out.
-
-	A potential solution is to protect all database accesses with a binary semaphore, so only one database query can run at any time.
-
-	Analysis may reveal that this is too restrictive a policy; perhaps we can execute 5 queries concurrently without any slowdown.
-
-	Then initialize the semaphore with a value of 5, allowing at most 5 threads into the critical section at any time.
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Multiplex}
-
-
-	This is a symmetric solution, so it will work for arbitrarily many threads.
-
-	\textbf{Thread \textit{K}}\vspace{-6em}
-	\begin{verbatim}
-	1. wait( mutex )
-	2. critical section
-	3. post( mutex )
-  \end{verbatim}
-	\vspace{-2em}
-
-	This looks exactly like the solution for mutual exclusion, as it should.
-
-	The only difference is how many threads can enter the critical section at a time.
-
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{That's One Kind of Barrier}
+	If a cycle exists, then some process \textit{may} be deadlocked:
 
 	\begin{center}
-		\includegraphics[width=0.9\textwidth]{images/fence-barrier.jpg}
+		\includegraphics[width=0.40\textwidth]{images/rag2.png}
 	\end{center}
 
 \end{frame}
 
-
 \begin{frame}
-	\frametitle{Barrier}
+	\frametitle{Resource Allocation Graph}
 
-	The barrier pattern is a generalization of the rendezvous pattern;\\
-	\quad A way of having more than two threads meet up at the same point.
-
-	Given $n$ threads, each of which knows that the total number of threads is $n$.
-
-	When the first $n-1$ threads arrive, they should wait until the $n$th arrives.
-
-	As a solution we might consider a variable to keep track of the number of threads that have reached the appropriate point.
-
-	This variable is shared data; modification of it should be in a critical section.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Barrier}
-
-	Thus we will have a semaphore, initialized to 1, called \texttt{mutex} to protect that counter.
-
-	Then we will have a second semaphore, \texttt{barrier} that will be the place where threads wait until the $n$th thread arrives.
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Barrier Solution 1}
-
-	\textbf{Thread \textit{K}}\vspace{-10em}
-	\begin{verbatim}
-	1. wait( mutex )
-	2. count++
-	3. post( mutex )
-	4. if count == n
-	5.     post( barrier )
-	6. end if
-	7. wait( barrier )
-  \end{verbatim}
-	\vspace{-2em}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Barrier Solution 1 Analysis}
-
-	When the $n$th thread arrives, it unlocks the barrier and then may proceed.
-
-	If there is more than one thread waiting at the barrier, the first thread will be unblocked when the $n$th thread posts on it.
-
-	There are no other \texttt{post} statements!
-
-	The other threads waiting are stuck, waiting for a post that never comes.
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Barrier Solution 2}
+	But the presence of a cycle is not necessarily certain that there is a deadlock.
 
 	\begin{center}
-		\includegraphics[width=0.7\textwidth]{images/oprah.jpg}
+		\includegraphics[width=0.40\textwidth]{images/rag3.png}
+	\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Dealing with Deadlock}
+
+	There are four basic approaches to dealing with deadlock.
+
+	\begin{enumerate}
+		\item Ignore it.
+		\item Deadlock prevention.
+		\item Deadlock avoidance.
+		\item Deadlock detection.
+	\end{enumerate}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Also Called the Ostrich Algorithm}
+
+	\begin{center}
+		\includegraphics[width=0.7\textwidth]{images/ostrich-head-sand.jpg}
 	\end{center}
 
 
 \end{frame}
 
 
-\begin{frame}[fragile]
-	\frametitle{Barrier Solution 2}
+\begin{frame}
+	\frametitle{Ignoring Deadlock}
 
-	The $n$th thread to arrive should post $n$ times:
+	This option is certainly convenient for operating system designers!
 
-	\textbf{Thread \textit{K}}\vspace{-6em}
-	\begin{verbatim}
-	1. wait( mutex )
-	2. count++
-	3. post( mutex )
-	4. if count == n
-	5.     for i from 1 to  n
-	6.         post( barrier )
-	7.     end for
-	8. end if
-	9. wait( barrier )
-  \end{verbatim}
-	\vspace{-2em}
+	They simply pretend that deadlock can never happen.
 
+	Or if it does happen, it is the application developers' fault.
 
+	It doesn't seem right, but... Microsoft Windows takes this approach.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Deadlock Prevention}
+
+	This approach is a way of preventing a deadlock from being possible.
+
+	The first three conditions for deadlock (mutual exclusion, hold and wait, and no preemption) are all necessary for deadlock to be possible.
+
+	If we eliminate one of these three pillars, deadlock is not possible and it is prevented from happening.
+
+	But can you remove the need for it in your program?
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Knocking Down: Mutual Exclusion}
+
+	Mutual Exclusion cannot, generally speaking, be disallowed.
+
+	The purpose of  mutual exclusion is: prevent errors like inconsistent state/crashes.
+
+	Getting rid of mutual exclusion to rule out the possibility of deadlock is a cure that is worse than the disease.
+
+	It is therefore not acceptable as a solution.
 
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Barrier Solution 2 Analysis}
+	\frametitle{Knocking Down Hold-and-Wait}
+	To prevent the hold-and-wait condition, we must guarantee that when a process requests a resource, it does not have any other resource.
 
-	This allows all $n$ threads to proceed (none get stuck), but it is less than ideal.
+	This does not mean that things can be requested only one at a time.
 
-	The thread that runs last is very likely the lowest priority thread.
+	One plausible solution: request all resources at the beginning of the program.
 
-	When it posts on the semaphore, the thread that has just been unblocked will be the next to run.
-
-	Then the system switches back, at some later time, to the thread currently unblocking all the others.
-
-	Worst case, $2n$ process switches, when it could be accomplished with $n$.
-
+	If the program needs $R_{1}$, $R_{2}$, and $R_{3}$ at some point, all three must be requested right at the beginning and held throughout the program.
 
 \end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Barrier Solution 3}
-
-	Have each thread unblock the next:
-
-	\textbf{Thread \textit{K}}\vspace{-6em}
-	\begin{verbatim}
-	1. wait( mutex )
-	2. count++
-	3. post( mutex )
-	4. if count == n
-	5.     post( barrier )
-	6. end if
-	7. wait( barrier )
-	8. post( barrier )
-  \end{verbatim}
-	\vspace{-2em}
-
-
-\end{frame}
-
 
 \begin{frame}
-	\frametitle{This Has a Name!}
+	\frametitle{Knocking Down Hold-and-Wait}
+
+	A process has to know in advance all of the resources that it will need.
+
+	Remember that a file is a resource.
+
+	A simple text editor can be used by the user to open an arbitrary file.
+
+	How do we know in advance which will be requested?
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Knocking Down Hold-and-Wait}
+
+	This also has performance implications: a process cannot start until it has all the resources it will ever need, even if it will not need them until much later.
+
+	Thus, processes might spend a lot of time waiting before starting.
+
+	In theory, a process might never start if one or more of the resources it needs is always in use (so this is vulnerable to starvation).
+
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Knocking Down Hold-and-Wait}
+
+	What if a process must release all its currently-held resources before it can get any new ones?
+
+	The process has $R_{1}$ and $R_{2}$ and wants to get $R_{3}$.\\
+	\quad First release $R_{1}$ and $R_{2}$ before it can request all three.
+
+	A resource that cannot be easily released is memory.\\
+	\quad Released memory may be collected and reassigned by the operating system.
+
+	Therefore we cannot release all resources.
+
+	We cannot rule out deadlock; we can only make it less likely to occur.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Two-Phase Locking}
+	
 	\begin{center}
-		\includegraphics[width=0.9\textwidth]{images/nyc-subway-turnstile.jpg}
+	\includegraphics[width=0.4\textwidth]{images/cookiedown.jpg}
 	\end{center}
 
+	Another idea that might work is \alert{two-phase locking}.
+
+	A process attempts to lock a group of resources at once.
+
+	If it does not get everything it needs, it releases the locks it got and tries again.
+
+	Thus a process does not wait while holding resources.
+
+	If a philosopher picks up a chopstick but is unable to acquire a second, she puts down the chopstick she has picked up and tries again.
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Two-Phase Locking}
+
+	Two phase locking is not applicable to our current model for semaphores.
+
+	There is no way to know the value of the semaphore and the operating system will block a process on a \texttt{wait} if some other thread is in the critical region.
+
+	After the process is blocked on the semaphore, a second process will run, and the first process does not get the opportunity to release the resources it holds.
+
+	There are systems that have nonblocking requests \& mutual exclusion.
+
+	Then the program is responsible for checking if any of the requests returned \texttt{false} and releasing any resources where the request returned \texttt{true}.
+
+
 \end{frame}
 
 
-\begin{frame}
-	\frametitle{Barrier Solution 3 Analysis: The Turnstile}
+\begin{frame}[fragile]
+	\frametitle{Try This}
+	Fortunately, we know of some routines that do just this: the \texttt{trylock} functions that were mentioned earlier but not expanded upon:
+	\begin{lstlisting}[language=C]
+int pthread_mutex_trylock( pthread_mutex_t * mutex )
+int pthread_rwlock_tryrdlock( pthread_rwlock_t * rwlock )
+int pthread_rwlock_trywrlock( pthread_rwlock_t  * rwlock )
+\end{lstlisting}
 
-	This pattern (wait followed immediately by post) is called a \alert{turnstile}.
+	These functions return an integer and it's extremely important to check and see if the return code is 0.
 
-	The analogy should be familiar to anyone who has travelled by subway.\\
-	\quad A turnstile allows one person at a time to go through.
+	That is the only way to know if the lock was acquired.
 
-	A turnstile pattern allows one thread at a time to proceed through, but can be locked to bar all threads from proceeding.
+\end{frame}
 
-	Initially the turnstile in the above example is locked, and the $n$th thread unlocks it and permits all $n$ threads to go through.
+
+\begin{frame}[fragile]
+	\frametitle{Have You Tried Trying?}
+
+	It should be possible to reason about this solution and demonstrate that:\\
+	\quad (1) a philosopher can only eat if they have both chopsticks, and\\
+	\quad (2) deadlock does not occur.
+
+	\begin{lstlisting}[language=C]
+int locked_both = 0;
+while( locked_both == 0 ) {
+  int locked1 = pthread_mutex_trylock( chopstick1 );
+  int locked2 = pthread_mutex_trylock( chopstick2 );
+  if (locked1 != 0 && locked2 == 0) {
+    pthread_mutex_unlock( chopstick2 );
+  } else if (locked1 == 0 && locked2 != 0 ) {
+    pthread_mutex_unlock( chopstick1 );
+  } else if (locked1 != 0 && locked2 != 0 ) {
+    /* Do nothing */
+  } else {
+    locked_both = 1;
+  }
+}
+eat( );
+
+pthread_mutex_unlock( chopstick1 );
+pthread_mutex_unlock( chopstick2 );
+\end{lstlisting}
 
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Barrier Solution 3 Analysis}
+\frametitle{Try, Try Again}
 
-	In this solution we are reading the value of \texttt{count}, a shared variable, without the protection of a semaphore.
+There does exist a ``try'' function for the semaphore as well:
 
-	Is this dangerous?
+\begin{lstlisting}
+int sem_trywait( sem_t * sem );
+\end{lstlisting}
 
-	Yes, but the alternative is, in this specific instance, worse.
-
-	Consider this instead:
-
-	\textbf{Thread \textit{K}}\vspace{-2em}
-	\begin{verbatim}
-	1. wait( mutex )
-	2. count++
-	3. if count == n
-	4.     post( barrier )
-	5. end if
-	6. wait( barrier )
-	7. post( barrier )
-	8. post( mutex )
-  \end{verbatim}
-	\vspace{-2em}
+If we would have been blocked at the call to \texttt{sem\_trywait}, it returns -1 and \texttt{errno} is set to \texttt{EAGAIN}.
 
 \end{frame}
+
+
 
 \begin{frame}
-	\frametitle{Barrier Solution 3A Analysis}
+	\frametitle{Knocking Down No Preemption}
 
-	The problem here is deadlock once again.
+	Preemption: forcible removal of resources from a process.
 
-	The first thread waits on \texttt{mutex} and then goes to wait on the \texttt{barrier} semaphore.
+	Suppose a process $P_{1}$ holds $R_{1}$ and $R_{2}$ and wants to get $R_{3}$, but $R_{3}$ is unavailable.
 
-	At this point, the first thread is blocked.
+	$P_{1}$ will be blocked by the operating system.
 
-	When a second thread comes along, it will wait on \texttt{mutex} but can get no further because the first thread has not posted on it.
+	If $P_{2}$ requests $R_{1}$ and $R_{2}$, the resources $R_{1}$ and $R_{2}$ are taken away from $P_{1}$.
 
+	The resources are added to the list of things that $P_{1}$ is waiting for.
 
-\end{frame}
+	In the meantime, $P_{2}$ can use them and continue.
 
-\begin{frame}
-	\frametitle{Barrier Solution 3A Analysis}
-
-	The counter will be 1, but cannot get past 1.
-
-	The condition of \texttt{count} equalling $n$ can never be true.
-
-	Thus, all the threads are stuck.
-
-	This is a common source of deadlock: blocking on a semaphore while inside a critical region.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Reusable Barrier}
-
-	The barrier solution we have is good.
-
-	The way it is implemented now, \texttt{count} can increase but never decrease.
-
-	Once the barrier is open, it can never be closed again.
-
-	Programs very often do the same thing repeatedly, so a one-time use barrier is not ideal; it would be better to have a reusable barrier.
-
-	Idea: Decrement \texttt{count} after the rendezvous has taken place.
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Reusable Barrier Solution 1}
-
-	\textbf{Thread \textit{K}}\vspace{-2em}
-	\begin{verbatim}
-	 1. wait( mutex )
-	 2. count++
-	 3. post( mutex )
-	 4. if count == n
-	 5.     post( turnstile )
-	 6. end if
-	 7. wait( turnstile )
-	 8. post( turnstile )
-	 9. [critical point]
-	10. wait( mutex )
-	11. count--
-	12. post( mutex )
-	13. if count == 0
-	14.     wait( turnstile )
-	15. end if
-  \end{verbatim}
-	\vspace{-2em}
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Reusable Barrier Solution 1 Analysis}
-
-	There are two problems with the above implementation.
-
-	Suppose thread $n-1$ is about to execute line 4 and then there is a process switch and the $n$th thread comes to this point.
-
-	Both of them will find that \texttt{count} is equal to $n$ and therefore both threads will post the turnstile.
-
-	The same problem occurs on line 13.
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Reusable Barrier Solution 2}
-
-	\textbf{Thread \textit{K}}\vspace{-2em}
-	\begin{verbatim}
-	 1. wait( mutex )
-	 2. count++
-	 3. if count == n
-	 4.     post( turnstile )
-	 5. end if
-	 6. post( mutex )
-	 7. wait( turnstile )
-	 8. post( turnstile )
-	 9. [critical point]
-	10. wait( mutex )
-	11. count--
-	12. if count == 0
-	13.     wait( turnstile )
-	14. end if
-	15. post( mutex )
-  \end{verbatim}
-	\vspace{-2em}
+	$P_{1}$ will be unblocked when all three resources are once again available for it.
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Reusable Barrier Solution 2 Analysis}
+	\frametitle{Allowing Preemption}
 
-	This solves the problem previously identified by putting the checks of \texttt{count} inside the critical section controlled by \texttt{mutex}.
+	For preemption to work, however, the resource must be a resource of a type where the state can be saved and restored (e.g., the CPU with its registers).
 
-	Suppose one particular thread gets through the second mutex but is running in a loop and gets back through the first mutex again.
+	This isn't really something we can do as program designers.
 
-	This would be like one thread being one ``lap'' ahead of the others.
+	This is not applicable to all resources; if a printer is in use by $P_{1}$ it cannot be preempted and given to $P_{2}$, otherwise the printout will be a jumble.
 
-	We can prevent this by having two turnstiles: first all threads wait at the first turnstile until the last gets there and lets them through.
+	Thus, preemption is also not sufficient to prevent deadlock from ever transpiring, it once again only makes it less likely.
 
-	Then all threads wait at a second turnstile until the last gets there and lets them all through again.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Reusable Barrier Visually}
-
-	\begin{center}
-		\includegraphics[width=\textwidth]{images/reusable-barrier.png}
-	\end{center}
-
-	This solution can also be called a \alert{two-phase barrier} because all threads have to wait twice: once at each turnstile.
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Reusable Barrier Solution 3}
-	\vspace{-0.5em}
-	\textbf{Thread \textit{K}}\vspace{-0.5em}
-	\begin{verbatim}
-	 1. wait( mutex )
-	 2. count++
-	 3. if count == n
-	 4.     wait( turnstile2 )
-	 5.     post( turnstile1 )
-	 6. end if
-	 7. post( mutex )
-	 8. wait( turnstile1 )
-	 9. post( turnstile1 )
-	10. [critical point]
-	11. wait( mutex )
-	12. count--
-	13. if count == 0
-	14.     wait( turnstile1 )
-	15.     post( turnstile2 )
-	16. end if
-	17. post( mutex )
-	18. wait( turnstile2 )
-	19. post( turnstile2 )
-  \end{verbatim}
-	\vspace{-2em}
 
 
 \end{frame}

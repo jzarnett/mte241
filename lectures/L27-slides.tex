@@ -1,6 +1,6 @@
 \input{configuration}
 
-\title{Lecture 27 --- Concurrency: Synchronization/Atomicity }
+\title{Lecture 27 --- The Producer-Consumer Problem }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
@@ -17,642 +17,547 @@
 
 
 \begin{frame}
-	\frametitle{Synchronization}
-
-	If a computer only ever did exactly one thing at a time we would have no concurrency and therefore no concurrency (co-ordination) problems.
-
-	A system with multiple processes or multiple threads will have concurrency.
-
-	If the system is multicore, we can have parallelism.
-
-	Either or both of these can lead to various problems.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Synchronization}
-
-	The author of an application does not decide when a thread runs and when a thread switch will occur.
-
-	These are things the operating system will decide.
-
-	The operating system does not usually give much thought to whether it is a convenient or inconvenient time to run a given thread.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Synchronization}
-
-	The common English usage of the word ``synchronization'' refers to making two or more things happen at exactly the same time.
+	\frametitle{Monty Python and the Holy Compiler}
 
 	\begin{center}
-		\includegraphics[width=0.4\textwidth]{images/synchronize-watches.jpg}
+		\includegraphics[width=0.4\textwidth]{images/three-riddles.jpg}
 	\end{center}
 
-	Synchronization in the computer sense is more general:\\
-	\quad Some relationship between events: before, during, after.
+	The producer-consumer problem, the readers-writers problem, and the dining philosophers problem.
 
 \end{frame}
 
 
 \begin{frame}
-	\frametitle{Olympic Synchronization}
+	\frametitle{Produce and Consume}
 
-	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/baton-handoff.jpg}
-		\includegraphics[width=0.5\textwidth]{images/skiing.jpg}
-	\end{center}
+	First: the producer-consumer problem, also sometimes called the bounded-buffer-problem.
 
-\end{frame}
+	Two processes share a common buffer that is of fixed size.
 
+	One process is the producer: it generates data and puts it in the buffer.
 
-\begin{frame}
-	\frametitle{Serialization}
+	The other is the consumer: it takes data out of the buffer.
 
-	\alert{Serialization}: some sort of order of events.
-
-	Certainty that Event $A$ takes place before Event $B$.
-
-	Example: a thread or process that \texttt{wait}s on another.
-
-	Merge sort: the merge thread to wait for the sorting threads to finish.
-
-	Thus the sorting (event $A$) must take place before the merging (event $B$).\\
-	\quad Or we could phrase it that $B$ must happen after $A$.
-
+	This problem can be generalized to have $p$ producers and $c$ consumers.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Mutual Exclusion}
+	\frametitle{Consume, Obey}
 
-	\alert{Mutual exclusion}: events $C$ and $D$ must not happen at the same time.
+	Rules:
+	\begin{itemize}
+		\item The buffer is of capacity \texttt{BUFFER\_SIZE}.
+		\item Cannot write into a full buffer
+		\item Cannot read from an empty buffer
+	\end{itemize}
 
-	IPC: an area of memory that is shared between two processes.
+	To keep track of the number of items in the buffer, we will have some variable \texttt{count}.
 
-	If two processes can write to this area, there is some possibility that they both try to access the same place at the same time.
-
-	If we have mutual exclusion, we are certain that $P_{1}$ writing to the shared area (event $C$) does not happen at the same time as $P_{2}$ tries to read it (event $D$).
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Serialization through Messages}
-
-	Suppose we have two people, Alice and Bob\\
-	\quad They work at the Springfield Nuclear Power Plant in Sector 7G.
-
-	They work in separate offices and cannot easily see one another.
-
-	Alice works the day shift and Bob works the night shift.
-
-	Due to safety regulations, Alice cannot go home until Bob has arrived.
-
-	This is a situation where we would like serialization: the event of Bob's arrival must take place before the event of Alice's departure.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Serialization through Messages}
-
-	How can we get such behaviour?
-
-	Simple solution: Alice won't leave until she gets a call from Bob.
-
-	Bob doesn't call until he's arrived at the office.
-
-	This is the sort of thing we do in real life often: ``Text me when you get here''.
-
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Sequential and Concurrent Events}
-
-	If we are certain that Bob arrives before Alice departs, we can say that these events are \alert{sequential}, because we know the order of events.
-
-	At some point during the workday, Alice ate lunch, and at some point before work, Bob ate lunch.
-
-	But we have no idea who ate lunch first, so we say they ate lunch \alert{concurrently}.
-
-	The formal, strict definition of concurrent is: two events are concurrent if we cannot tell by looking at the program which will happen first.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Concurrent Events}
-
-	In common parlance, when we say something happened concurrently, it means they happened at the same time (Alice and Bob both had lunch at 12:00).
-
-	Concurrency is not the same as saying that they happened at the exact same time; it's saying that we do not know (and cannot guarantee) an order of events.
-
-	It's possible that Alice had lunch at 12:00 and Bob had lunch at 13:00 or they both ate at 12:00 or Alice had lunch at 13:30 and Bob had lunch at 12:15.
-
-	We do not know.
-
-	The order of concurrent events may change on two runs of the program; this is what we call \alert{nondeterminism}.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Non-Deterministic Programs}
-
-	In a non-deterministic program, we cannot tell just by looking at the program what the execution order would be.
-
-	If we have two concurrent events: \\
-	\quad One in which the program prints ``1'' to the console; and\\
-	\quad One in which the program prints ``2'' to the console.
-
-	These could happen in any order.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Non-Deterministic Programs}
-
-	So we might see the output as ``12'' or ``21''.
-
-	Which one will happen? Without some form of co-ordination, it could be either.
-
-	If ``12'' is the correct output but ``21'' occurs only very rarely, finding the cause and fixing it might be very painful.
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Heisenbugs}
-
-	This is, what is referred to as a ``Heisenbug''.
-
-	This has nothing to do with the ``Breaking Bad'' TV show.
-
-	\begin{center}
-		\includegraphics[width=0.3\textwidth]{images/heisenberg.jpg}
-		\includegraphics[width=0.1891\textwidth]{images/werner-heisenberg.jpg}
-	\end{center}
-
-	It comes from Werner Heisenberg and his scientific principle of uncertainty.
-
-	The Heisenbug is frustrating because the harder we try to track it down, the less likely it is to occur.
-
+	This is a shared variable, so we need a mutex for it.
 
 \end{frame}
 
 
 \begin{frame}[fragile]
-	\frametitle{Shared Data and Atomic Operations}
-	We noted earlier that the need for co-ordination in inter-process communication arises from the fact that some area of memory is shared.
+	\frametitle{Are We There Yet?}
 
-	We also know that all the threads of a process share the same data:.
+	If busy-waiting is permitted, we can get away with one mutex.
 
-	Simple example of a shared variable \texttt{x} is manipulated by two threads $A$ and $B$:
+	Shown below is one loop iteration for each of the producer \& consumer.
+		{\small
+			\begin{multicols}{2}
+				\textbf{Producer}
+				\begin{verbatim}
+	 1. [produce item]
+	 2. added = false
+	 3. while added is false
+	 4.    wait( mutex )
+	 5.    if count < BUFFER_SIZE
+	 6.        [add item to buffer]
+	 7.        count++
+	 8.        added = true
+	 9.    end if
+	10.    post( mutex )
+	11. end while
+  \end{verbatim}
+				\columnbreak
+				\textbf{Consumer}
+				\begin{verbatim}
+	 1. removed = false
+	 2. while removed is false
+	 3.    wait( mutex )
+	 4.    if count > 0
+	 5.        [remove item from buffer]
+	 6.        count--
+	 7.        removed = true
+	 8.    end if
+	 9.    post( mutex )
+	10. end while
+	11. [consume item]
+  \end{verbatim}
+			\end{multicols}
+			\vspace{-2em}
+		}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{No Busy-Waiting}
+
+	While this accomplishes what we want, it is inefficient.
+
+	Let's add a new rule that says we want to avoid busy-waiting.
+
+	The producer gets blocked if there are no available spaces.
+
+	The consumer gets blocked if there's nothing to consume.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{When You Lose Track of the Number of Sets...}
+
+	\begin{center}
+		\includegraphics[width=0.7\textwidth]{images/counting.jpeg}
+	\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Use Semaphores To Count}
+
+	Use 2 general semaphores, each with maximum value of \texttt{BUFFER\_SIZE}.
+
+	\texttt{items}: starts at 0 and represents how many spaces in the buffer are full.
+
+	\texttt{spaces}: starts at \texttt{BUFFER\_SIZE} and represents the number of spaces in the buffer that are currently empty.
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Producer-Consumer with Waiting}
 
 	\begin{multicols}{2}
-		\textbf{Thread A}
+		\textbf{Producer}
 		\begin{verbatim}
-	A1. x = 5
-	A2. print x
-	\end{verbatim}
+	 1. [produce item]
+	 2. wait( spaces )
+	 3. [add item to buffer]
+	 4. post( items )
+  \end{verbatim}
 		\columnbreak
-		\textbf{Thread B}
+		\textbf{Consumer}
 		\begin{verbatim}
-	B1. x = 7
-	
-	\end{verbatim}
+	 1. wait( items )
+	 2. [remove item from buffer]
+	 3. post( spaces )
+	 4. [consume item]
+  \end{verbatim}
 	\end{multicols}
+	\vspace{-2em}
+
+	Does this work?
+
+	Are there any implicit assumptions?
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Analyzing the $A$ and $B$ Example}
+	\frametitle{Assumptions made? I assume so...}
 
-	This is non-deterministic code.
+	(1) The actions of adding an item to the buffer and removing an item from the buffer add to and remove from the ``next'' space.
 
-	There is no co-ordination mechanism here so we cannot say what order these statements will occur.
+	(2) There is exactly one producer and one consumer in the system.
 
-	Some possible outcomes are:\\
-	\quad 5 is printed out and is the final value;\\
-	\quad 7 is printed out and is the final value; or\\
-	\quad 5 is printed out and 7 is the final value.
-
-	Note that there is no way we can print out 7 and get a final value of 5.
+	If we have two producers, for example, they might be trying to write into the same space at the same time, and this would be a problem.
 
 
 \end{frame}
 
-\begin{frame}
-	\frametitle{Interrupts}
-
-	We do not even need multiple threads to have a concurrency problem; just having interrupts in the system is sufficient.
-
-	Consider an application that is used to count occurrences of some event.
-
-	We will store the count in a variable \texttt{count}.
-
-	We will provide some facility for the user to reset the counter (the reset button).
-
-	Each time we detect the event, we increment \texttt{count} with statement of \texttt{count++;} which seems like one single statement.
-
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Interrupts}
-
-	\texttt{count++;} is broken down into a series of smaller operations.
-
-	If \texttt{count} is 4 and we increment it:
-
-	\begin{enumerate}
-		\item Read the current value of \texttt{count} (read 4)
-		\item Add 1 to the value (now it's 5)
-		\item Write the changed value back to memory (write 5)
-	\end{enumerate}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Interrupts}
-
-	Now imagine an interrupt comes at the worst possible time.
-
-	The interrupt is generated by the reset button: it's supposed to set the value of count to zero.
-
-	\begin{enumerate}
-		\item Read the current value of \texttt{count} (read 4)
-		\item Add 1 to the value (now it's 5)
-		\item INTERRUPT (control goes to the interrupt handler)
-		\item Write 0 to the variable (write 0)
-		\item END INTERRUPT (control returns to where it was before the interrupt)
-		\item Write the changed value back to memory (write 5)
-	\end{enumerate}
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Interrupts}
-
-	The variable \texttt{count} shows 5, but it should show 0 (or 1).
-
-	The user pressed the reset button but the count did not reset!
-
-	If the reset interrupt had occurred before reading the variable $\rightarrow$ 1.
-
-	If the reset interrupt had occurred after writing the variable $\rightarrow$ 0.
-
-	The reset action is ``lost''.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Atomic Operation}
-
-	This problem arises because the instruction \texttt{count++} is really three things (read, add, write) and can be interrupted at any time.
-
-	When we are performing an operation that cannot be interrupted, we say it is \alert{atomic}: indivisible.
-
-	The word stems from Greek word \textit{atomos}, roughly ``not cut-able''.
-
-	Though there are usually some atomic operations available to us in a given system, we cannot be certain that all operations are indivisible.
-
-	In fact, the opposite is likely to be true!
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Atomic Operation}
-
-	Can we get atomic operations with serialization?
-
-	That is, can we make sure that the \texttt{count++} operation completes before the \texttt{count = 0} operation?
-
-	In this case there is no obvious order between the events: the user may press the reset button at any time, even if no event has just occurred.
-	
-\end{frame}
-
-\begin{frame}
-	\frametitle{Atomic Operation}
-
-
-	Similarly, the event may be detected even if the user is nowhere around and not going to press the reset button.
-
-	Our concept of serialization requires that there exists a correct order:\\
-	\quad First this, then that.
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Keep Calm...}
-
-	\begin{center}
-		\includegraphics[width=0.4\textwidth]{images/waityourturn.png}
-	\end{center}
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Mutual Exclusion}
-
-	Here, where both orders are valid, we need the other approach: mutual exclusion (also called \alert{mutex}).
-
-	We do not know or enforce any particular order of event.
-
-	But: we don't have $>1$ threads trying to update a variable at the same time.
-
-	The action to reset \texttt{count} to zero would have to wait until the \texttt{count++} operation was completely finished (or vice versa).
-
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Put your Deerstalker Cap on}
-
-\begin{center}
-	\includegraphics[width=\textwidth]{images/detectivepikachu.jpg}
-\end{center}
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Mutual Exclusions through Flags}
-
-	So we have identified shared data as a potential source of error.
-
-	A section of code that should be accessed by a maximum of one thread at a time is referred to as a \alert{critical section}.
-
-	The purpose of mutual exclusion is to ensure that at most one thread is in the critical section at a time.
-	
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Mutual Exclusions through Flags}
-
-	If we ever have more than one thread in the critical section at a time, something has gone terribly wrong.
-
-	But on the other hand, the critical section is supposed to do something useful, so we cannot solve the problem by not allowing any thread to access it ever.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Critical Sections}
-
-	It is the responsibility of the programmer to identify what critical sections, if any, exist in the program, and to protect them with mutexes.
-
-	Some analysis tools may exist to identify shared data, but ultimately the best analysis tool is taking a careful look.
-
-	Critical sections should be as short as possible (but must enclose all shared data accesses).
-
-	The critical section is something that cannot be run in parallel, so it increases the magnitude of the $S$ term in Amdahl's Law.
-
-\end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Mutual Exclusion with Flags}
+	\frametitle{Mmmmmmmulti-Consume!}
 
-	Strategy: have a variable to indicate if the critical section is currently in use.
+	To generalize this solution to allow multiple producers and multiple consumers, we need a \texttt{mutex}.
 
 	\begin{multicols}{2}
-		\textbf{Thread A}
+		\textbf{Producer}
 		\begin{verbatim}
-	A1. while ( turn != 0 ) {
-	A2.    /* Wait for my turn */
-	A3. }
-	A4. /* critical section */
-	A5. turn = 1;
-	\end{verbatim}
+	 1. [produce item]
+	 2. wait( spaces )
+	 3. wait( mutex )
+	 4. [add item to buffer]
+	 5. post( mutex )
+	 6. post( items )
+  \end{verbatim}
 		\columnbreak
-		\textbf{Thread B}
+		\textbf{Consumer}
 		\begin{verbatim}
-	B1. while ( turn != 1 ) {
-	B2.   /* Wait for my turn */
-	B3. }
-	B4. /* critical section */
-	B5. turn = 0;
-	\end{verbatim}
+	 1. wait( items )
+	 2. wait( mutex )
+	 3. [remove item from buffer]
+	 4. post( mutex )
+	 5. post( spaces )
+	 6. [consume item]
+  \end{verbatim}
 	\end{multicols}
+	\vspace{-2em}
 
-	Strict alternation!
+	Does this work?
+
+	Anything... worrying?
 
 \end{frame}
 
+
 \begin{frame}
-	\frametitle{Strict Alternation}
+	\frametitle{Cancel Red Alert}
 
-	First it is the turn of thread $A$, then the turn of thread $B$, then back to $A$, etc.
+	The hint that we might have a problem is one \texttt{wait} statement inside another.
 
-	What if thread $A$ is to run more often than $B$?
+	But it doesn't guarantee a problem...
 
-	If thread $B$ terminates then thread $A$ will be stuck forever because the variable \texttt{turn} will always be saying that it is thread $B$'s turn.
-
-	This solution is obviously not satisfactory.
+	We should be able to reason through why there is (or isn't) a problem.
 
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{A Second Approach}
+	\frametitle{Alternative Solution: PC}
 
 	\begin{multicols}{2}
-		\textbf{Thread A}
+		\textbf{Producer}
 		\begin{verbatim}
-	A1. while ( busy == true ) {
-	A2.    /* Wait for my turn */
-	A3. }
-	A4. busy = true;
-	A5. /* critical section */
-	A6. busy = false;
-	\end{verbatim}
+	 1. [produce item]
+	 2. wait( mutex )
+	 3. wait( spaces )
+	 4. [add item to buffer]
+	 5. post( items )
+	 6. post( mutex )
+  \end{verbatim}
 		\columnbreak
-		\textbf{Thread B}
+		\textbf{Consumer}
 		\begin{verbatim}
-	B1. while ( busy == true ) {
-	B2.    /* Wait for my turn */
-	B3. }
-	B4. busy = true;
-	B5. /* critical section */
-	B6. busy = false;
-	\end{verbatim}
+	 1. wait( mutex )
+	 2. wait( items )
+	 3. [remove item from buffer]
+	 4. post( spaces )
+	 5. post( mutex )
+	 6. [consume item]
+  \end{verbatim}
 	\end{multicols}
+	\vspace{-2em}
 
-	A boolean flag.
+	Does this work?
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Boolean Flag}
+	\frametitle{The Tiny Details...}
 
-	The statement \texttt{while (busy == true)} is followed by \texttt{busy = true;}
+	This solution does have the deadlock problem!
 
-	These are two distinct steps: read of \texttt{busy} and write of \texttt{busy}.
+	Imagine at the start of execution, the buffer is empty and the consumer runs first...
 
-	A process switch could occur between the read and the write.
+	Do you see the problem now?
 
-	Then threads $A$ and $B$ will both be in the critical section at the same time!
+	This could also happen with the producer.
 
-	This solution is also not satisfactory.
+\end{frame}
+
+\begin{frame}
+	\frametitle{Problems are Only Sometimes a Problem}
+
+	If this solution were implemented, it wouldn't guarantee a deadlock occurs.
+
+	In fact, it probably works fine most of the time.
+
+
+	Once, however, we have found one scenario that can lead to deadlock, there is no need to look for other failure cases.
+
+	We can replace this solution with a better one.
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{P-C Example}
+
+	\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <semaphore.h>
+
+#define BUFFER_SIZE 20
+sem_t spaces;
+sem_t items;
+int counter = 0;
+int* buffer;
+
+int produce() {
+  ++counter;
+  return counter;
+} 
+
+void consume( int value ) {
+  printf("Consumed %d.\n", value);
+}
+\end{lstlisting}
 
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Third Time's the Charm}
+	\frametitle{P-C Example}
 
-	\begin{multicols}{2}
-		\textbf{Thread A}
-		\begin{verbatim}
-	A1. flag[0] = true;
-	A2. while ( flag[1] ) {
-	A3.    /* Wait for my turn */
-	A4. }
-	A5. /* critical section */
-	A6. flag[0] = false;
-	\end{verbatim}
-		\columnbreak
-		\textbf{Thread B}
-		\begin{verbatim}
-	B1. flag[1] = true;
-	B2. while ( flag[0] ) {
-	B3.    /* Wait for my turn */
-	B4. }
-	B5. /* critical section */
-	B6. flag[1] = false;
-	\end{verbatim}
-	\end{multicols}
-
-	An array of flags, then.
-\end{frame}
-
-\begin{frame}
-	\frametitle{Array of Flags}
-
-	Once again, this strategy is defeated by an untimely process switch.
-
-	If statement A1 sets \texttt{flag[0]} to true and there is a switch to thread $B$, setting \texttt{flag[1]} to true, now both processes are stuck.
-
-	Neither can advance, because each is waiting for the other.
-
-	This is, perhaps, slightly better than two threads in the critical section, but we have two threads that are permanently stuck now.
-
-	This is also not satisfactory.
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Disabling Interrupts}
-
-	The attempts at solution we have attempted so far have all been foiled by an untimely process switch, which will be triggered by an interrupt.
-
-	This presents a possible solution: disabling interrupts.
-
-	Disabling interrupts is a crude solution.
-
-	\begin{center}
-		\includegraphics[width=0.3\textwidth]{images/ignorefirealarm.jpg}
-	\end{center}
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Disabling Interrupts}
-
-	While interrupts are disabled, the system will be unable to respond to user input or other events (e.g., a fire alarm or detection of an incoming missile!).
-
-	\begin{center}
-		\includegraphics[width=\textwidth]{images/thisisfine.png}
-	\end{center}
-
-	If an error is encountered in the critical section and the program is terminated, the system is effectively stuck because no other program will be able to run.
-
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{Disabling Interrupts}
-
-	If we have multiple processors the disabling interrupts will not be sufficient.
-
-	But maybe we're on the right track by getting hardware involved.
-
-
-	The hardware designers were aware of the problem and have kindly provided a facility to help us out: the \alert{Test-and-Set} instruction.
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Test-and-Set}
-
-	The Test-and-Set instruction is a special machine instruction that is performed in a single instruction cycle and is therefore not interruptible.
-
-	It is therefore an atomic read and write.
-
-	Its semantics in C are:
-
-	\begin{verbatim}
-boolean test_and_set( int* i ) {
-  if ( *i == 0 ) {
-    *i = 1;
-    return true;
-  } else {
-    return false;
+	\begin{lstlisting}[language=C]
+void* producer( void* arg ) {
+  int pindex = 0;
+  while( counter < 10000 ) {
+    int v = produce();
+    sem_wait( &spaces );
+    buffer[pindex] = v;
+    pindex = (pindex + 1) % BUFFER_SIZE;
+    sem_post( &items );
   }
+  pthread_exit( NULL );
 }
-\end{verbatim}
+
+void* consumer( void* arg ) {
+  int cindex = 0;
+  int ctotal = 0;
+  while( ctotal < 10000 ) {
+    sem_wait( &items );
+    int temp = buffer[cindex];
+    buffer[cindex] = -1;
+    cindex = (cindex + 1) % BUFFER_SIZE;
+    sem_post( &spaces );
+    consume( temp );
+    ++ctotal;
+  }
+  pthread_exit( NULL );
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{P-C Example}
+
+	\begin{lstlisting}[language=C]
+int main( int argc, char** argv ) {
+  buffer = malloc( BUFFER_SIZE * sizeof( int ) );
+  for ( int i = 0; i < BUFFER_SIZE; i++ ) {
+    buffer[i] = -1;
+  }  
+  sem_init( &spaces, 0, BUFFER_SIZE );
+  sem_init( &items, 0, 0 );
+
+  pthread_t prod;
+  pthread_t con;
+
+  pthread_create( &prod, NULL, producer, NULL );
+  pthread_create( &con, NULL, consumer, NULL );
+  pthread_join( prod, NULL );
+  pthread_join( con, NULL );
+
+  free( buffer );
+  sem_destroy( &spaces );
+  sem_destroy( &items );
+  pthread_exit( 0 );
+}
+
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Before We Go On}
+
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/stop-hammertime.jpg}
+	\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Mutex Syntax}
+
+	We should take a moment to learn about the syntax of the pthread mutex.
+
+	While it is possible, of course, to use a semaphore as a mutex, frequently we will use the more specialized tool for this task.
+
+	In fact, it's generally good practice to use the more specialized tool.
 
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Test-and-Set}
+	\frametitle{Mutex Syntax}
 
-	Now let us put it into action.
+	The structure representing the mutex is of type \texttt{pthread\_mutex\_t}.
 
-	\begin{verbatim}
-while ( !test_and_set( busy ) ) {
-   /* Wait for my turn */
+	\begin{lstlisting}[language=C]
+pthread_mutex_init( pthread_mutex_t *mutex, pthread_mutexattr_t *attributes )
+\end{lstlisting}
+
+	\texttt{mutex}: the mutex to intiialize.
+
+	\texttt{attributes}: the attributes; \texttt{NULL} is fine for defaults.
+
+	Shortcut if you do not want to set attributes:
+
+	\begin{lstlisting}[language=C]
+pthread_mutex_t mymutex = PTHREAD_MUTEX_INITIALIZER;
+\end{lstlisting}
+
+	By default, the mutex is created as unlocked.
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Lock and Unlock}
+
+	\begin{lstlisting}[language=C]
+pthread_mutex_lock( pthread_mutex_t *mutex )
+pthread_mutex_trylock( pthread_mutex_t *mutex ) /* Returns 0 on success */
+pthread_mutex_unlock( pthread_mutex_t *mutex )
+\end{lstlisting}
+
+	Unlock is self-explanatory.
+
+	\texttt{pthread\_mutex\_lock} is blocking.
+
+	\texttt{pthread\_mutex\_trylock} is nonblocking.
+
+	Trylock will come up again soon when we look at another classical synchronization problem.
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Destroy the Mutex}
+
+	\begin{lstlisting}[language=C]
+pthread_mutex_destroy( pthread_mutex_t *mutex )
+\end{lstlisting}
+
+	Destroy is also self-explanatory.
+
+	An attempt to destroy the mutex may fail if the mutex is currently locked.
+
+	Attempting to destroy a locked one results in undefined behaviour.
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Multiple Producer-Consumer Example}
+	\begin{lstlisting}[language=C]
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <math.h>
+#include <semaphore.h>
+
+#define BUFFER_SIZE 100
+int buffer[BUFFER_SIZE];
+int pindex = 0;
+int cindex = 0;
+sem_t spaces;
+sem_t items;
+pthread_mutex_t mutex;
+
+int produce( int id ) {
+  int r = rand();
+  printf("Producer %d produced %d.\n", id, r);
+  return r;
 }
-/* critical section */
-busy = 0;
-\end{verbatim}
 
-
-	(Both $A$ and $B$ would be the same, so only one copy is shown)
-
-
+void consume( int id, int number ) {
+  printf("Consumer %d consumed %d.\n", id, number);
+}
+\end{lstlisting}
 \end{frame}
 
-\begin{frame}
-	\frametitle{Mutual Exclusion Success!}
-
-	Finally, we have something that will provide mutual exclusion without the risk that the threads will all get stuck because each thinks another is in the critical section.
-
-	This is good, but can be improved.
-
-	The \texttt{while} loop that is constantly checking the value with the Test-and-Set instruction is an example of \alert{busy-waiting}.
-
-	A given thread is constantly checking and checking and checking the instruction, and this is a waste of time and effort.
-
+\begin{frame}[fragile]
+	\frametitle{Multiple Producer-Consumer Example}
+	\begin{lstlisting}[language=C]
+void* producer( void* arg ) {
+  int* id = (int*) arg;
+  for(int i = 0; i < 10000; ++i) {
+    int num = produce(*id); 
+    sem_wait( &spaces );
+    pthread_mutex_lock( &mutex );
+    buffer[pindex] = num;
+    pindex = (pindex + 1) % BUFFER_SIZE;
+    pthread_mutex_unlock( &mutex );
+    sem_post( &items );
+  }
+  free( arg );
+  pthread_exit( NULL );
+}
+\end{lstlisting}
 \end{frame}
 
-\begin{frame}
-	\frametitle{Busy-Waiting}
+\begin{frame}[fragile]
+	\frametitle{Multiple Producer-Consumer Example}
+	\begin{lstlisting}[language=C]
 
-	It is less wasteful of resources and effort if the \texttt{while} loop contains some instructions saying it should wait a little while before checking again.
-
-	Serialization was achievable through messages; and they can be used to get mutual exclusion. This is the topic to be examined next.
-
-
+void* consumer( void* arg ) {
+  int* id = (int*) arg;
+  for(int i = 0; i < 10000; ++i) {
+    sem_wait( &items );
+    pthread_mutex_lock( &mutex );
+    int num = buffer[cindex];
+    buffer[cindex] = -1;
+    cindex = (cindex + 1) % BUFFER_SIZE;
+    pthread_mutex_unlock( &mutex );
+    sem_post( &spaces );
+    consume( *id, num );
+  }
+  free( id );
+  pthread_exit( NULL );
+}
+\end{lstlisting}
 \end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Multiple Producer-Consumer Example}
+	\begin{lstlisting}[language=C]
+int main( int argc, char** argv ) {
+  sem_init( &spaces, 0, BUFFER_SIZE );
+  sem_init( &items, 0, 0 );  
+  pthread_mutex_init( &mutex, NULL );
+
+  pthread_t threads[20];
+
+  for( int i = 0; i < 10; i++ ) {
+    int* id = malloc(sizeof(int));
+    *id = i;
+    pthread_create(&threads[i], NULL, producer, id);
+  }
+  for( int j = 10; j < 20; j++ ) {
+    int* jd = malloc(sizeof(int));
+    *jd = j-10;
+    pthread_create(&threads[j], NULL, consumer, jd);
+  }
+  for( int k = 0; k < 20; k++ ){  
+    pthread_join(threads[k], NULL);
+  }
+  sem_destroy( &spaces );
+  sem_destroy( &items );
+  pthread_mutex_destroy( &mutex );
+  pthread_exit( 0 );
+}
+\end{lstlisting}
+\end{frame}
+
+
 
 \end{document}
 

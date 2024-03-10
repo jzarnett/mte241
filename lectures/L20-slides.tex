@@ -1,6 +1,6 @@
 \input{configuration}
 
-\title{Lecture 20 --- Uniprocessor Scheduling }
+\title{Lecture 20 --- Real-Time Scheduling}
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
@@ -14,477 +14,476 @@
   \titlepage
 
  \end{frame}
-
-
-
+ 
 \begin{frame}
-\frametitle{Uniprocessor Scheduling}
+\frametitle{Real-Time Scheduling}
 
-Scheduling is very complex with multiple threads and multiple processors.
 
 \begin{center}
-	\includegraphics[width=0.56\textwidth]{images/makeplan.jpg}
+	\includegraphics[width=0.7\textwidth]{images/tiktok.jpg}
 \end{center}
 
-To keep things simple, we'll start with one processor.
+\end{frame}
 
+\begin{frame}
+\frametitle{Real-Time Scheduling}
+
+Real-Time scheduling is just scheduling for real-time systems.
+
+But what is a real-time system?
+
+Supposed to respond to events within some real (wall-clock) time. 
+
+There are deadlines, and there are consequences for missing deadlines. 
+
+Fast is not as important as predictable.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Task Management}
+
+The term \alert{task} is used to refer to something that needs doing.
+
+Yes, the scheduler operates on threads rather than specific things to do.
+
+Let's say each task corresponds to a thread trying to some work.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Task Types}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/tofu.jpg}
+\end{center}
+
+Not quite... Hard, Firm, Soft.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hard and Soft Real-Time}
+
+\alert{Hard real-time}: it has a deadline that must be met to prevent an error, prevent some damage to the system, or for the answer to make sense. 
+
+If a task is attempting to calculate the position of an incoming missile, a late answer is no good. 
+
+A \alert{soft real-time} task has a deadline that is not, strictly speaking, mandatory; missing the deadline degrades the quality of the response, but it is not useless.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Firm}
+
+Firm is about severity of consequences. 
+
+A firm deadline is one in which the response is useless if it arrives a little too late.
+
+A hard deadline is one in which the system itself fails if it doesn't meet the deadline.
+\end{frame}
+
+\begin{frame}
+\frametitle{Desktop OSes and Real-Time}
+
+Most of the operating systems you are familiar with (standard Desktop/Server Linux, Mac OS, Windows) are not very suitable to real time systems. 
+
+They make few guarantees, if any, about service. 
+
+When there are consequences for missing deadlines, this kind of thing matters. 
 
 \end{frame}
 
 
 \begin{frame}
-\frametitle{Scheduling}
+\frametitle{Userspace?}
 
-The basic premise: decide when a process gets to execute. 
+Remember Java's ``stop the world'' garbage collector scenario.
 
-Four types of scheduling: 
+Why is the OS not suitable for real-time operations?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Arbitrary Timelines}
+
+How long does it take to run a system call?
+
+If you measure it, is that the average scenario? Worst-case?
+
+Interrupts? Concurrency-control mechanisms?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{It's Different}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/thinkdifferent.png}
+\end{center}
+
+Much of the difference of real-time systems is in scheduling.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hard Real-Time Failure}
+
+If a task is hard real-time, there are two scenarios in which it might not complete before its deadline. 
+
+The first is that it is scheduled too late; like an assignment that will take two hours to complete being started one hour before the deadline. 
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/notime.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hard Real-Time Failure}
+
+If that is the case, the system will likely reject the request to start the task, or perhaps never schedule the task to run at all. 
+
+Why waste computation time on a task that will not finish in time? 
+
+... Could it have been completed if scheduled better?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hard Real-Time Failure}
+
+The second scenario is that at the time of starting, completion was possible. 
+
+For whatever reason (e.g., other tasks with higher priority have occurred) it is no longer possible to meet the deadline. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hard Real-Time Failure}
+
+In that case, execution of the task may be terminated partway through so that no additional effort is wasted on a task that cannot be completed.
+
+... Could this task have been completed if scheduled better?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Properties of Real-Time Systems}
+
+Real-time systems are considered to be unique in five key areas:
 
 \begin{enumerate}
-	\item \textbf{Long-Term Scheduling}
-	\item \textbf{Medium-Term Scheduling}
-	\item \textbf{Short Term Scheduling}
-	\item \textbf{I/O Scheduling} (for later)
-\end{enumerate}
-
-\end{frame}
-
-
-
-\begin{frame}
-\frametitle{Long-Term Scheduling}
-
-The long-term scheduler determines which programs run at all.
-
-How many jobs do we plan to allow concurrently?
-
-Controls the transition from ``new'' to the ``ready state''.
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Long-Term Scheduling}
-Does not happen much on desktop systems.\\
-\quad The user is responsible for deciding what programs to open.
-
-Sometimes there are per-user limits: e.g, max 100 processes.
-
-Long term example: server-based games (Diablo III) denying a request for a new game due to server load.
-
-Mobile OSes like Android can be more aggressive.
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Medium-Term Scheduling}
-
-More interesting than long-term; related to swapping.
-
-A swapped out process cannot run in the immediate future.\\
-\quad But will before too long...
-
-When swapped in, the short term scheduler decides.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling}
-Sometimes called the \alert{dispatcher}. 
-
-The medium and long term scheduler are all about someday and sometime. 
-
-The short term scheduler is about ``what are we going to do \textit{right now}''. 
-
-The short term scheduler is going to run a lot, so it is very important. 
-
-It will often run after certain things occur. 
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling}
-
-Co-operative multitasking, short term scheduling will only take place if:\\
-\quad The currently executing process yields the CPU; or\\
-\quad The currently executing process terminates (voluntarily or with an error). 
-
-\begin{center}
-	\includegraphics[width=0.75\textwidth]{images/macos9.png}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling}
-
-This is not how most operating systems work these days. 
-
-\begin{center}
-	\includegraphics[width=0.6\textwidth]{images/remembers.jpg}
-\end{center}
-
-
-If the process does yield or terminate, then the short term scheduler will run.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling}
-
-What we will discuss from here on out is \alert{pre-emptive multitasking}.
-
-The operating system, and not the running process, is responsible for deciding when it's time to switch processes. 
-
-\begin{center}
-	\includegraphics[width=0.3\textwidth]{images/captainnow.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling}
-
-Some pre-emptive systems still have the concept of yield, and that is still an occasion to run the scheduler. 
-
-Similarly, in pre-emptive systems, processes still terminate.
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling: When?}
-
-The dispatcher will certainly run when a process becomes blocked.
-
-Examples: I/O operations (network?), block on mutex, page fault...
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling: When?}
-
-Another time to make a scheduling decision is after handling an interrupt.
-
-After the interrupt is handled, we can return to execution exactly where we left off, or we can go somewhere else.
-
-The original process is suspended already, so why not leave it in that state?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling: When?}
-
-System calls like \texttt{fork} and even signalling on a semaphore may also provide good opportunities to switch from one process to another. 
-
-By invoking the operating system (system call), the caller is suspended.
-
-So it is necessary to decide what process executes next. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling: When?}
-
-We acknowledged this in the discussion of \texttt{fork} by saying it was not known if the parent or child would execute next. 
-
-Semaphores: we do not even know which of the processes waiting on the semaphore will be the one to receive the signal. 
-
-\begin{center}
-	\includegraphics[width=0.3\textwidth]{images/canadianstandoff.jpg}
-\end{center}
-
-Even then, which of the signalling process and waiting process will resume?
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Short-Term Scheduling: When?}
-
-Finally, there is also time slicing. 
-
-\begin{center}
-	\includegraphics[width=0.2\textwidth]{images/initiative.jpg}
-\end{center}
-
-If time slices are defined as $t$ units, every $t$ time units, there will be an interrupt generated by the clock.
-
-The interrupt handler runs the short term scheduler to choose a process to run, so that different processes run (seemingly-)concurrently.
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Process Behaviour}
-
-Processes tend to alternate periods of computing with input/output requests. 
-
-These tend to alternate; the CPU does a lot of work, called a \alert{CPU Burst},
-
-Then some I/O; the period where it is waiting is called the \alert{I/O Burst}. 
-
-After the I/O is completed, the CPU can go at it again. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Process Behaviour}
-
-How much of each a process does allows for classification of the process.
-
-Processes that spend most of their time computing are called \alert{CPU-Bound}.
-
-The alternative is a process that mostly waits for I/O: \alert{I/O-Bound}
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{CPU- and I/O-Bound Processes}
-
-\begin{center}
-\includegraphics[width=\textwidth]{images/cpu-io-bound.png}
-\end{center}
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{CPU- and I/O-Bound Processes}
-
-An I/O-Bound program will tend to have short CPU bursts, of course. 
-
-CPUs have gotten faster at a rate much higher than the rate of I/O speedup. 
-
-A new CPU comes out every few months and they get faster. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{CPU- and I/O-Bound Processes}
-
-
-I/O standards like Serial-ATA and USB and such change very slowly, over the course of years. 
-
-\begin{center}
-	\includegraphics[width=0.7\textwidth]{images/ports.jpg}
-\end{center}
-
-So it makes sense that over time programs tend towards being I/O-Bound. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{CPU Burst Histogram}
-
-\begin{center}
-\includegraphics[width=\textwidth]{images/cpu-burst-histogram.png}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Bursts}
-
-But what does this have to do with scheduling? 
-
-The long term scheduler may attempt to keep a balance between CPU- and I/O-Bound tasks to get the best resource utilization. 
-
-This requires that the long term scheduler have some idea about which processes are which.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Bursts}
-
-
-Another is that if the disk is slow...
-
-When the disk has nothing to do, the short term scheduler should immediately schedule a process that is likely to issue a disk request.
-\end{frame}
-
-
-
-\begin{frame}
-\frametitle{Scheduling Criteria}
-
-The goals of scheduling depend significantly on the objectives of the system. 
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/timetravel.jpg}
-\end{center}
-
-First we have to decide what we want.
-
-\end{frame}
-
-
-
-\begin{frame}
-\frametitle{Scheduling Criteria}
-If the system is supposed to respond to events within a certain period of time (real time system), this matters a lot to scheduling. 
-
-Perhaps the goal is for the CPU to be used maximally (as in a supercomputer). 
-
-Or maybe the most important thing is for users to feel like the system answers them quickly when they issue a command.
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Scheduling Criteria}
-
-As usual when making a decision, we could just decide randomly. 
-
-We need evaluation criteria.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Scheduling Criteria}
-
-We will examine and define the following scheduling criteria:
-
-\begin{enumerate}
-	\item Turnaround time.
-	\item Response time.
-	\item Deadlines.
-	\item Predictability.
-	\item Throughput.
-	\item Processor utilization.
-	\item Fairness.
-	\item Enforcing priorities.
-	\item Balancing resources.
+	\item Determinism
+	\item Responsiveness
+	\item User (administrator) control
+	\item Reliability
+	\item Fail-Soft operation
 \end{enumerate}
 
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Scheduling Algorithm Goals}
-
-The priorities of these different goals depend on the kind of system it is. 
-
-All Systems:
-\begin{itemize}
-	\item Fairness
-	\item Priorities
-	\item Balancing Resources
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Scheduling Algorithm Goals}
-
-The priorities of these different goals depend on the kind of system it is. 
-
-Batch Systems:
-\begin{itemize}
-	\item Throughput
-	\item Turnaround time
-	\item CPU Utilization
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Scheduling Algorithm Goals}
-
-The priorities of these different goals depend on the kind of system it is. 
-
-Interactive Systems:
-\begin{itemize}
-	\item Response time.
-	\item Predictability.
-\end{itemize}
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{The (Ab)use of Priorities}
-
-Each process's priority is typically an integer. 
-
-In UNIX, a lower number is higher priority; Windows is the opposite. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Priorities}
-
-With a priority value assigned, it can be used to make decisions. 
-
-Imagine $P_{1}$ wants resource $R_{1}$ and $P_{2}$ wants that same resource. 
-
-If the priority of $P_{1} > P_{2}$, choose to assign the resource to $P_{1}$.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Priorities}
-
-The OS or the program author may be responsible for assigning a priority.
-
-These priorities may change over time with various criteria. 
-
-System administrators can change priorities, usually.
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Priorities}
-
-Yes, this does mean that some processes are treated better than others.\\
-\quad Sometimes solely as the result of inheritance.
+\frametitle{Determinism}
 
 \begin{center}
-	\includegraphics[width=0.5\textwidth]{images/aristocrat.jpg}
+	\includegraphics[width=0.4\textwidth]{images/predictable.jpg}
+\end{center}
+
+Determinism: operations are predictable.
+
+Perfect determinism probably won't happen; just need guarantees.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Nondeterminism?}
+
+Nondeterminism isn't necessarily bad: e.g., caching.
+
+The presence of caching makes the worst case no worse and the best case much better -- this sounds like free performance to me! 
+
+Can you think of something else?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Responsiveness}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/notresponding.jpg}
+\end{center}
+
+Responsiveness includes not only the time to execute the interrupt handler...
+
+Also the time it takes to start the interrupt handler and what happens if the interrupt is itself interrupted by another higher-priority interrupt.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Administrator Control}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/twup.png}
+\end{center}
+
+Administrator control could be much less or much more!
+
+Typical OS is somewhere in between.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Reliability \& Fail-Soft}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/silvermedal.jpg}
+\end{center}
+
+
+Fail-soft: do our best even if it's not possible to succeed at all tasks.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Scheduling is Central}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/captainschair.jpg}
 \end{center}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{User Priority Input}
+\frametitle{Scheduling Algorithm Selections}
 
-Users may have a say in priority, in at least a limited way. 
+Choosing the wrong algorithm guarantees failure.
 
-In Windows, for example, as a user it may be possible to set a task priority. 
+Scheduling algorithms we've discussed so far are inadequate.
 
-Giving this to users was probably a bad idea, because users often do it wrong. 
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{User Priority Input}
-
-If you have a long, CPU-Bound task, the right thing to do is to give it a low priority and not a high one. 
-
-You might expect that the high priority will get the task done faster... 
-
-It kills the performance of the system and makes users unhappy...\\
-\quad Even though that's what they asked for!
-
-
+Fairness and minimizing average response time are irrelevant.
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Choosing the Next Process}
+\frametitle{Stay On Target!}
+The goal is to make sure hard real-time tasks complete.\\
+\quad And as many as possible of the soft real-time tasks.
 
-In some systems, the highest priority non-blocked process will always run. 
+Right algorithm? Success is possible but not guaranteed.
 
-This is a great way of making sure that higher priority processes have right-of-way, but a terrible way of ensuring fairness and preventing starvation. 
-
-So, scheduling is not as easy as just finding the highest priority thing to do...
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/physics.jpg}
+\end{center}
 
 \end{frame}
+
+\begin{frame}
+\frametitle{Preemption is the Priority}
+
+Non-preemptive algorithms won't work here.
+
+Immediate preemption makes sense.
+
+Why, when we can make timeslices super small?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{What Kind of Tasks?}
+
+Every task can be categorized as one of the four kinds:
+
+\begin{enumerate}
+	\item Fixed-Instance
+	\item Periodic
+	\item Aperiodic
+	\item Sporadic
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Fixed Instance}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/oneping.jpg}
+\end{center}
+
+This kind of task happens only a fixed number of times (usually once).
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Periodic Tasks}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/periodic.jpg}
+\end{center}
+
+If a task repeats at regular intervals, it's \alert{periodic}.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Periodic Tasks}
+
+Periodic tasks have two relevant attributes:\\
+\quad: $\tau_{k}$, the period; \\
+\quad $c_{k}$, the worst-case computation time
+
+We can calculate the utilization of periodic tasks:
+
+\begin{center}
+$U = \sum\limits_{k=1}^n\dfrac{c_{k}}{\tau_{k}}$
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Overloaded}
+
+If $U > 1$, it means the system is overloaded: there are too many periodic tasks. 
+
+We cannot guarantee that the system can execute all tasks and meet the deadlines.
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/allshesgot.jpg}
+\end{center}
+
+Otherwise, we can devise a schedule.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Only Periodic?}
+
+If the only tasks in the system are periodic ones, then we can create a fixed schedule for them.
+
+Example: classes at UW.
+
+But life is rarely so nice.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Aperiodic Tasks}
+
+Aperiodic tasks occur irregularly with no minimum interval.
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/aperiodic.jpg}
+\end{center}
+
+If we expect an average arrival rate of 3 requests per second, there is still a 1.2\% chance that eight or more requests appear within 1~second
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Sporadic Task}
+
+Sporadic tasks are aperiodic, but they require meeting deadlines.
+
+\begin{center}
+	\includegraphics[width=0.3\textwidth]{images/sporadic.jpg}
+\end{center}
+
+We need a guarantee that there is a minimum time $\tau_{k}$ between occurrences of the event.
+
+They can overload the system?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Estimation}
+
+Where do task execution times come from?
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/estimates.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Worst Case Scenario}
+
+We always assume the worst case scenario! 
+
+There's two ways to do it: source code analysis and empirical testing.
+
+Err on the side of caution... More money? Worse battery life?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Airline Example}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/cancelled-flights.jpg}
+\end{center}
+
+Caused by lack of capacity...
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Code Analysis}
+
+Code analysis is exactly what it sounds like.
+
+Try to figure out how long the execution takes on the longest path.
+
+Overestimate; ignores pipelining and compiler optimizations...
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Estimation is Hard}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/nasa-logo.png}
+\end{center}
+
+NASA/JPL Guidelines:
+\begin{enumerate}
+	\item No recursion and no \texttt{goto}
+	\item Loops must have a fixed bound
+	\item No dynamic memory allocation after init
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Empirical Observation}
+
+If you already have a version $n$ of the system and want to build version $n+1$: extrapolate?
+
+Otherwise, simulate.
+
+Simulation must be representative or misleading.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Confidence Intervals}
+
+It's possible to estimate using known mathematical techniques the worst case runtime with the \alert{confidence interval}.
+
+We might say that the maximum time is $t$ with 99\% confidence, based on the standard deviation.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Ready to Schedule Some?}
+
+Now that we understand real-time systems and classification...
+
+Let's actually schedule some!
+
+\end{frame}
+
 
 \end{document}
 
