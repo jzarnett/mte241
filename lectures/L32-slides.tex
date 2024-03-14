@@ -453,50 +453,5 @@ I'd say this validates our idea for how to implement RW Locks...
 
 \end{frame}
 
-\begin{frame}
-\frametitle{Condition Variable}
-
-Remember: different semantics...
-
-Lost-wakeup problem, but also paired with a mutex.
-
-When a wait happens, the thread must be holding a mutex.
-
-Blocked for sure; release the mutex.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Signal or Broadcast}
-
-Signal may unblock a thread but it needs the mutex to continue.
-
-Broadcast the same, but many threads...\\
-\quad Each of which still needs the mutex!
-
-\end{frame}
-
-\begin{frame}
-\frametitle{No Internal Counter}
-
-Condition variables don't have or need an internal counter.
-
-Yes, the lost-wakeup problem does exist but it's part of the spec.
-
-It's not just a semaphore with broadcast.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{No Internal Counter}
-
-In many ways it would be wrong to have such a counter.
-
-We cannot use a semaphore as the basis for a condition variable.
-
-But this is simpler anyway so why would we want to?
-
-\end{frame}
-
 \end{document}
 
