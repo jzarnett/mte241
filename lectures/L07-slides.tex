@@ -16,6 +16,392 @@
 \end{frame}
 
 
+\begin{frame}
+\frametitle{So You Want To Manage a Stack}
+
+Stack management is a challenging but important subject.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/herosquest.png}
+\end{center}
+
+Goals: learn about the stack, the Cortex M's stack pointers, and the Application-Binary Interface.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{What Goes on the Stack?}
+
+1. Local variables
+
+2. Context variables: function args, return addresses...
+
+3. Register data or other state storage
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{FIFO Behaviour}
+
+Remember that the stack is a FIFO data structure:
+
+\alert{Push} things on to the stack...
+
+\alert{Pop} things off of the stack...
+
+Cannot remove things from the middle...\\
+\quad But I mean, it's just memory, so you \textit{can} do bad things... but shouldn't.
+
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+\frametitle{Function Call With Annotations}
+
+\begin{lstlisting}[language=C]
+int do_something( int x ) {
+  if ( x > 30 ) {
+    int y = 5;
+    return y+x;
+  }
+  return x - 10;
+}
+\end{lstlisting}
+
+\begin{itemize}
+	\item PUSH return address (but not \texttt{x})
+	\item If \texttt{x > 30}
+		\begin{itemize}
+			\item Push \texttt{y}
+			\item Add \texttt{y + x}
+			\item Put result into Register \texttt{R0}
+			\item POP \texttt{y}
+			\item JUMP to return address
+			\item POP return address
+		\end{itemize}
+	\item Otherwise:
+		\begin{itemize}
+		\item Compute \texttt{x - 10}
+		\item Put the result into Register \texttt{R0}
+		\item JUMP to return address
+		\item POP return address
+	\end{itemize}
+\end{itemize}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Function Call with Annotation}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/sureaboutthat.png}
+\end{center}
+
+Some things in that list are a bit suspect. Why?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Location, Location, and Optimization}
+
+The compiler optimizes! Remove \texttt{int y = 5;} and make it \texttt{return 5 + x}
+
+	
+Computations need memory locations so instead of adding \texttt{5 + x} somewhere else and then putting it into \texttt{R0}, make that the destination.
+
+So the branch of \texttt{x > 30} probably looks more like:
+\begin{itemize}
+	\item LOAD \texttt{x} into \texttt{R0}
+	\item \texttt{R0 = R0 + 5}
+	\item JUMP to return address
+	\item POP return address
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{But Did It Work?}
+
+The example still gives us some idea about pushing and popping from the stack.
+
+Every thread-local variable will have a stack location or a register.
+
+When the function ends, everything  from that function is popped off the stack. 
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{In Balance}
+
+PUSH and POP operations must be equal. 
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/balance-force.jpg}
+\end{center}
+
+So no have memory leaks, though we can run out of space (overflow).
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Stacks Grow Where?}
+
+Typically we think of a stack like its physical representation.
+
+Software stacks may grow down rather than up.\\
+\quad So PUSH decrements the stack pointer and POP increments it.
+
+If the stack is empty and we push data: write it, decrement SP.\\
+\quad If it's not empty (``full''), decrement SP then write.
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Cortex M4 Stack Organization}
+
+\texttt{SP}: ``The'' stack pointer, used by the processor to access the stack.
+
+\texttt{MSP}: ``Main'' stack pointer, always used in interrupts, initialized via reset vector address \texttt{0x0}.
+
+\texttt{PSP}: ``Process'' stack pointer, never used in interrupts, initialized by user/programmer.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Too Many of Them?}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/sptdh.jpg}
+\end{center}
+
+SP is directly connected to the CPU (need it).
+
+PSP can never be used by privileged code; MSP is for privileged code.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Let's Get Started}
+
+At boot time SP is probably 0 (not good).
+
+At load time memory segments get set up.
+
+The vector reset table is used (see next slide).
+
+The initial value of the MSP (SP) is \texttt{0x0}...\\
+\quad Access it as: \texttt{uint32\_t* MSP\_INIT = *(uint32\_t*) 0;}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Reset Vector Table}
+
+\begin{center}
+	\includegraphics[width=0.7\textwidth]{images/rvtable.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Application Binary Interface}
+
+The ABI is rules developed by chip designers for compilers to know.
+
+\begin{center}
+	\includegraphics[width=0.3\textwidth]{images/thelaw.jpg}
+\end{center}
+
+We'll look at the stack rules, but there's more complexity we're skipping.
+
+ABI says the stack is full and descending.\\
+\quad Any other organization is not following the rules.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Passing Arguments}
+
+Registers \texttt{R0 - R3} are the ``argument'' and ``result'' registers.\\
+\quad Precisely \texttt{4x4} bytes of space for arguments.
+
+Each register is one of:\\\begin{itemize}
+	\item A 4-byte type (e.g., \texttt{uint\_32})
+	\item A smaller-than-4-byte type (space is wasted)
+	\item A portion of a larger type (e.g., half of a \texttt{uint\_64}
+\end{itemize}
+
+
+Registers fill from \texttt{R0} to \texttt{R3}.
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Argument Examples}
+
+\begin{lstlisting}[language=C]
+uint_32 a, b;
+uint_64 c, d, e;
+
+/* Initialization not shown */
+
+foo( a, b ); // a goes in R0, b goes in R1
+
+
+bar( a, b, c ); // a goes in R0, b in R1, c is split over R2 and R3.
+
+
+big_fun( a, b, c, d, e ); // Where do they go?
+
+\end{lstlisting}
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Argument Examples}
+
+\begin{lstlisting}[language=C]
+uint_32 a, b;
+uint_64 c, d, e;
+
+/* Initialization not shown */
+
+foo( a, b ); // a goes in R0, b goes in R1
+
+
+bar( a, b, c ); // a goes in R0, b in R1, c is split over R2 and R3.
+
+
+big_fun( a, b, c, d, e ); // Where do they go?
+
+\end{lstlisting}
+
+You guessed it: additional function arguments go on the stack!
+
+The compiler may need to add code to shuffle them around.
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Is it Useful?}
+
+If the compiler is going to do it, do we need to know about it?
+
+Yes, if we're going to call a C function from assembly!
+
+\begin{verbatim}
+MOV R0, #3
+MOV R1, #4
+BL foo
+\end{verbatim}
+
+The above is equivalent to calling \texttt{foo( 3, 4 );}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Chained Function Calls}
+
+\begin{lstlisting}[language=C]
+int f1( int x, int y ) {
+  return x + y;
+}
+
+int f2( int a, int b, int c ) {
+  int x = f1( 3, 4 );
+  return x + a + b + c;
+}
+\end{lstlisting}
+
+
+Can't put 3 and 4 in \texttt{R0, R1} because they contain \texttt{a, b} that we still need.
+
+Now what? 
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Compiler!}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/NoProblemo.png}
+\end{center}
+
+In this specific example the compiler can just replace the call to \texttt{f1} with the add operation and change the return statement to be: \texttt{return 7 + a + b + c}.
+
+But suppose it did not or could not do that?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Write it Down!}
+
+Solution is hardware saved registers!
+
+\texttt{R0 - R3, PC, LR, SP} are pushed onto the stack by the hardware.\\
+\quad So the compiler does not have to do this.
+
+This is part of the ``call stack'' that helps us trace how we got here.
+
+When a function ends, those values are popped \& put back where they were.
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Other Registers?}
+
+Other registers \texttt{R4 - R11} are called \alert{scratch}.
+
+We don't have to preserve them across function calls.
+
+It will be our responsibility to store/restore them when switching between threads (context switch, scheduling).
+
+The compiler doesn't manage them and things can change.
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Return Values}
+
+Any data type less than 4 bytes goes into \texttt{R0}.
+
+Anything bigger than 4 bytes but less than 16 is spread over the needed amount of \texttt{R0-R3}, like the input arguments.
+
+After that, the compiler will put it elsewhere and return a pointer in \texttt{R0}.
+
+
+\end{frame}
+
 
 
 \end{document}
