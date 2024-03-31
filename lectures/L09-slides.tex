@@ -408,28 +408,10 @@ If we can share those 10 pages, we have saved 40 pages worth of memory space.
 
 Other programs and code can easily be shared, such as compilers, libraries, and operating system utilities. 
 
-In fact, any code can be shared as long as it is \alert{reentrant} (also sometimes called pure or stateless). 
+In fact, any code can be shared as long as it is reentrant (also sometimes called pure or stateless). 
 
-This is code that does not change when it is executed. 
+This is code that does not change when it is executed that has no state.
 
-That means there is no state maintained by the code. 
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Non-Reentrant Code}
-
-Any function that accesses a global or static variable is non-reentrant.
-
-\begin{verbatim}
-int tmp;
-void swap( int *x, int *y ) {
-  tmp = *x;
-  *x = *y;
-  *y = tmp; 
-}
-\end{verbatim}
 
 \end{frame}
 

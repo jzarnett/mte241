@@ -2,19 +2,409 @@
 
 \title{Lecture 5 --- Interrupt Implementation }
 
-\author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
+\author{Jeff Zarnett \& Mike Cooper-Stachowsky \\ \small \texttt{jzarnett@uwaterloo.ca, mstachowsky@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
   University of Waterloo}
 \date{\today}
+
 
 
 \begin{document}
 
 \begin{frame}
   \titlepage
+  
+  \small{Credit: Based on material from Allyson Giannikouris}
 
  \end{frame}
 
+\begin{frame}
+\frametitle{More About Interrupts}
+
+The previous topic discussed interrupts, both hardware and software.
+
+We also learned about how to deal with them on the Cortex M4.
+
+But to truly understand them, we need to look deeper into hardware.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Key Idea: No Polling}
+
+Avoid polling as much as possible: it's a waste of time!
+
+Instead: CPU can do whatever else is ready...\\
+\quad And get alerted when something happens. 
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/alarmclock.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Sleeping}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/awakebeauty.jpg}
+\end{center}
+
+The CPU can be in a ``sleeping'' mode, but we're ignoring that for this course.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Triggering an Interrupt}
+
+What can cause an interrupt?
+
+\begin{itemize}
+	\item Clock signals
+	\item Timers
+	\item Peripherals (UART, SPI, I2C, GPIO, ADC...)
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Interrupt Time}
+
+We covered 3 of the 4 items here last time:
+
+\begin{enumerate}
+	\item Interrupt the CPU
+	\item Save the state of the current task (PC, SP, R0-R3, LR)
+	\item Handle the interrupt
+	\item Resume execution (unless it's hard fault or similar)
+\end{enumerate}
+
+But we didn't cover how the hardware interrupt works!
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{How to get the CPU's Attention}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/thor.jpg}
+\end{center}
+
+It's a physical voltage signal (the power of electricity!).
+
+\end{frame}
+
+\begin{frame}
+\frametitle{How to get the CPU's Attention}
+
+Each interrupt has a dedicated wire -- we call them \alert{line}s.
+
+The line indicates the interrupt is ready.
+
+The CPU has various interrupt registers to see if the interrupt is ready.
+
+Signalling the processor is called an \alert{interrupt request (IRQ)}.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{IRQ Configuration}
+
+Configuring the interrupts is a bit of a headache and at one time involved setting physical jumpers on cards to configure them.
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/oldmancloud.png}
+\end{center}
+
+But the idea is still a table of interrupts...
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Interrupt Vector Table}
+
+We use an array of function pointers!
+
+Each interrupt references a particular address in the array.
+
+Cortex M's vector table starts at \texttt{0x0}.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Interrupt Vector Table}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/ivt.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{That's a Relief}
+
+Vector tables are configured in the setup code.
+
+Good news: we almost never have to write it ourselves.
+
+Pre-made code names the interrupt handler functions...\\
+\quad And the names are used to write your IRQ functions.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Example Config}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/example-irq-config.png}
+\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Once Activated}
+
+\begin{center}
+	\includegraphics[width=0.6\textwidth]{images/choppa.jpg}
+\end{center}
+
+This doesn't apply to SVC, though. 
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Once Activated}
+
+The code below runs when the SysTick interrupt happens, only if enabled.
+
+\begin{lstlisting}[language=C]
+void SysTick_Handler() {
+  // Do the thing
+}
+\end{lstlisting}
+
+Is it magical auto-generated design? Sure is.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Gotta Go Fast}
+
+Four main reasons to keep \alert{Interrupt Subroutines (ISRs)} short:
+
+\begin{enumerate}
+	\item Want to return to normal operation quickly
+	\item Minimize the chance of other interrupts
+	\item Shorter functions = less code = less risk of bug
+	\item C is hard enough; Assembly is much harder
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{So Call Me Maybe?}
+
+It's better to avoid calling functions in ISRs.
+
+We'll learn more about why this is complex in a future topic. 
+
+Functions called must be \alert{reentrant}. 
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Non-Reentrant Code}
+
+Any function that accesses a global or static variable is non-reentrant.
+
+\begin{lstlisting}[language=C]
+int tmp;
+void swap( int *x, int *y ) {
+  tmp = *x;
+  *x = *y;
+  *y = tmp; 
+}
+\end{lstlisting}
+
+How would you fix this to make it reentrant? 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{All Done}
+
+To return from an interrupt there's a special instruction \texttt{rti}.\\
+\quad You cannot just do a regular \texttt{return} statement.
+
+Let's think for a minute -- why not?
+
+Usually the IDE helps you out here.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Stop Talking While I'm Interrupting}
+
+We know a few ways of handling interrupts during another interrupt:\\
+\quad Ignore it, do it sequentially, switch to the new one?
+
+But how to choose... by priority perhaps?
+
+Interrupts are assigned a priority number; lower number is higher priority.\\
+\quad At least in the Cortex M4; other systems are different.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Stop Talking While I'm Interrupting}
+
+Some interrupts are always at a high priority and we can't change that.\\
+\quad Others are under our control!
+
+We aren't going to handle nested interrupts in our OS (too hard).
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Maskable Interrupts}
+
+Some interrupts are \alert{maskable}: can be ignored.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/awesome.jpg}
+\end{center}
+
+IRQs fall in this category. Usually indicate non-critical things.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Non-Maskable Interrupts}
+
+Other interrupts are non-maskable (NMI).
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/prioritychannel.jpg}
+\end{center}
+
+Cannot be turned off or ignored; for critical things.
+
+These force the CPU to halt execution!
+
+\end{frame}
+
+\begin{frame}
+\frametitle{This is It}
+
+In the Cortex M4 there's only one NMI.
+
+It's the one that gets called when other interrupt handlers fault.
+
+It's higher priority than anything other than \texttt{RESET}.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Fault Priority Levels}
+
+\begin{center}
+	\includegraphics[width=0.95\textwidth]{images/fpl.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{IRQ States}
+
+\textbf{Pending}: The conditions for the interrupt are met, but ISR has not run.
+
+\textbf{Active}: The CPU is running the ISR.
+
+
+\textbf{Pending and Active}: The next one is ready but we aren't done with the last!
+
+\textbf{Inactive}: Neither pending nor active.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Pending and Active}
+
+Pending and active can happen if we're not keeping up with the speed of the device somehow, or the device isn't keeping up with the CPU.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/tooslow.png}
+\end{center}
+
+Sometimes it's also about luck and timing; events can happen very close together.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Global Interrupt Enable}
+
+There is a single setting to turn on/off all interrupts.
+
+When ``off'', if triggered, they go to the pending state.
+
+When interrupts re-enabled, all pending ones evaluated by priority.
+
+This does not turn off NMI.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Is this Easy or Hard?}
+
+When a hardware interrupt occurs, though, what does the ISR do?
+
+Simple ISRs are easier to write but they can only do so much.
+
+What if the interrupt handler just needs to tell a user program it can proceed?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Don't forget to Like and Subscribe}
+
+This takes us down an interesting path...
+
+\begin{center}
+	\includegraphics[width=0.3\textwidth]{images/pandora.jpg}
+\end{center}
+
+Tasks (user processes) have state, more than just the current registers.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Try Again Later}
+
+We'll have to return to the subject of how tasks (processes and threads) can be made to wait when they're not able to continue.
+
+Just to be clear, what we're talking about is context-switching and multi-threading, but we're not ready for that yet.
+
+It will come up soon and will be important in the labs.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{On to Hardware Devices Then}
+
+Before we're ready to go on, we need to spend some more time on hardware.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/cable_hell.jpg}
+\end{center}
+
+Our next topic will focus on communicating with hardware devices!
+
+\end{frame}
 
 \end{document}
 
