@@ -1,6 +1,6 @@
 \input{configuration}
 
-\title{Lecture 20 --- Real-Time Scheduling}
+\title{Lecture 20 --- File System Implementation}
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
@@ -14,476 +14,480 @@
   \titlepage
 
  \end{frame}
+
+
+
+\begin{frame}
+\frametitle{Implementing the Interface}
+
+Now it is time to go behind the scenes of how the file system lives up to the interface we have just finished discussing. 
+
+The implementation is somewhat complicated, and to keep the size of the problem manageable we will worry about storing files on hard disks.
+
+\begin{center}
+	\includegraphics[width=0.35\textwidth]{images/hdd.jpg}
+\end{center}
+
+ \end{frame}
+
+
+
+\begin{frame}
+\frametitle{Implementing the Interface}
+
+ Hard disks themselves make a good choice for this: they are sufficiently large and sufficiently cheap, to start with, to store the data that we want to store. 
  
-\begin{frame}
-\frametitle{Real-Time Scheduling}
+ We can read an arbitrary part of the disk (unlike a tape). 
+ 
+Finally, we can write to the same part of disk as many times as we want. 
+ 
+Recall also that disks operate on blocks which, in their physical representation, comprise one or more sectors.
 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Layers of File System Design}
+
+\begin{itemize}
+	\item The File System
+	\item I/O Control
+	\item Basic File System
+	\item File Organization Module
+	\item Logical File System
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Disk Organization}
+
+There are a million different file systems (UFS, HFS+, ZFS, NTFS, ext3, FAT32...) 
+
+They are all significantly different, there are some general principles. 
+
+A file system will need to keep track of the total number of blocks, the number and locations of free blocks, the directory structure, and the files themselves.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Disk Organization}
+
+On at least one disk somewhere in the system, there will need to be some information about how to boot up the operating system. 
+
+Not every disk has the operating system on it, but if there is an OS the boot loader is usually put in the first block. 
+
+When the power button is pressed on the case, the BIOS starts up and transfers control to whatever is found at that first block.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Splitting it Up}
+Disks may be split, logically, into several different areas, or \alert{partitions}. 
+
+There will be a partition table (sometimes called superblock/master file table).
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Splitting it Up}
 
 \begin{center}
-	\includegraphics[width=0.7\textwidth]{images/tiktok.jpg}
+	\includegraphics[width=0.75\textwidth]{images/partition-map.png}
 \end{center}
 
-\end{frame}
+In the Windows world we often see the whole disk is in one logical partition (the C: drive, for example, taking the whole primary disk). 
 
-\begin{frame}
-\frametitle{Real-Time Scheduling}
-
-Real-Time scheduling is just scheduling for real-time systems.
-
-But what is a real-time system?
-
-Supposed to respond to events within some real (wall-clock) time. 
-
-There are deadlines, and there are consequences for missing deadlines. 
-
-Fast is not as important as predictable.
+In Linux we often see the disk divided up to have partitions for different things: temporary/swap directory, home directories, boot partition, et cetera...
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Task Management}
+\frametitle{Caching the File System}
 
-The term \alert{task} is used to refer to something that needs doing.
-
-Yes, the scheduler operates on threads rather than specific things to do.
-
-Let's say each task corresponds to a thread trying to some work.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Task Types}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/tofu.jpg}
-\end{center}
-
-Not quite... Hard, Firm, Soft.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Hard and Soft Real-Time}
-
-\alert{Hard real-time}: it has a deadline that must be met to prevent an error, prevent some damage to the system, or for the answer to make sense. 
-
-If a task is attempting to calculate the position of an incoming missile, a late answer is no good. 
-
-A \alert{soft real-time} task has a deadline that is not, strictly speaking, mandatory; missing the deadline degrades the quality of the response, but it is not useless.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Firm}
-
-Firm is about severity of consequences. 
-
-A firm deadline is one in which the response is useless if it arrives a little too late.
-
-A hard deadline is one in which the system itself fails if it doesn't meet the deadline.
-\end{frame}
-
-\begin{frame}
-\frametitle{Desktop OSes and Real-Time}
-
-Most of the operating systems you are familiar with (standard Desktop/Server Linux, Mac OS, Windows) are not very suitable to real time systems. 
-
-They make few guarantees, if any, about service. 
-
-When there are consequences for missing deadlines, this kind of thing matters. 
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Userspace?}
-
-Remember Java's ``stop the world'' garbage collector scenario.
-
-Why is the OS not suitable for real-time operations?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Arbitrary Timelines}
-
-How long does it take to run a system call?
-
-If you measure it, is that the average scenario? Worst-case?
-
-Interrupts? Concurrency-control mechanisms?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{It's Different}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/thinkdifferent.png}
-\end{center}
-
-Much of the difference of real-time systems is in scheduling.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Hard Real-Time Failure}
-
-If a task is hard real-time, there are two scenarios in which it might not complete before its deadline. 
-
-The first is that it is scheduled too late; like an assignment that will take two hours to complete being started one hour before the deadline. 
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/notime.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Hard Real-Time Failure}
-
-If that is the case, the system will likely reject the request to start the task, or perhaps never schedule the task to run at all. 
-
-Why waste computation time on a task that will not finish in time? 
-
-... Could it have been completed if scheduled better?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Hard Real-Time Failure}
-
-The second scenario is that at the time of starting, completion was possible. 
-
-For whatever reason (e.g., other tasks with higher priority have occurred) it is no longer possible to meet the deadline. 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Hard Real-Time Failure}
-
-In that case, execution of the task may be terminated partway through so that no additional effort is wasted on a task that cannot be completed.
-
-... Could this task have been completed if scheduled better?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Properties of Real-Time Systems}
-
-Real-time systems are considered to be unique in five key areas:
+There are several structures that are likely to be in memory for performance reasons:
 
 \begin{enumerate}
-	\item Determinism
-	\item Responsiveness
-	\item User (administrator) control
-	\item Reliability
-	\item Fail-Soft operation
-\end{enumerate}
-
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Determinism}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/predictable.jpg}
-\end{center}
-
-Determinism: operations are predictable.
-
-Perfect determinism probably won't happen; just need guarantees.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Nondeterminism?}
-
-Nondeterminism isn't necessarily bad: e.g., caching.
-
-The presence of caching makes the worst case no worse and the best case much better -- this sounds like free performance to me! 
-
-Can you think of something else?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Responsiveness}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/notresponding.jpg}
-\end{center}
-
-Responsiveness includes not only the time to execute the interrupt handler...
-
-Also the time it takes to start the interrupt handler and what happens if the interrupt is itself interrupted by another higher-priority interrupt.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Administrator Control}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/twup.png}
-\end{center}
-
-Administrator control could be much less or much more!
-
-Typical OS is somewhere in between.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Reliability \& Fail-Soft}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/silvermedal.jpg}
-\end{center}
-
-
-Fail-soft: do our best even if it's not possible to succeed at all tasks.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Scheduling is Central}
-
-\begin{center}
-	\includegraphics[width=\textwidth]{images/captainschair.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Scheduling Algorithm Selections}
-
-Choosing the wrong algorithm guarantees failure.
-
-Scheduling algorithms we've discussed so far are inadequate.
-
-Fairness and minimizing average response time are irrelevant.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Stay On Target!}
-The goal is to make sure hard real-time tasks complete.\\
-\quad And as many as possible of the soft real-time tasks.
-
-Right algorithm? Success is possible but not guaranteed.
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/physics.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Preemption is the Priority}
-
-Non-preemptive algorithms won't work here.
-
-Immediate preemption makes sense.
-
-Why, when we can make timeslices super small?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{What Kind of Tasks?}
-
-Every task can be categorized as one of the four kinds:
-
-\begin{enumerate}
-	\item Fixed-Instance
-	\item Periodic
-	\item Aperiodic
-	\item Sporadic
+	\item \textbf{Mount Table}
+	\item \textbf{Cache}
+	\item \textbf{Global Open File Table}
+	\item \textbf{Process Open File Table}
+	\item \textbf{Buffers}
 \end{enumerate}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Fixed Instance}
+\frametitle{File Control Block}
+
+Creating a new file is the job of the logical file system. 
+
+Allocation of a new FCB (or re-use of an existing free FCB)
 
 \begin{center}
-	\includegraphics[width=0.4\textwidth]{images/oneping.jpg}
-\end{center}
-
-This kind of task happens only a fixed number of times (usually once).
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Periodic Tasks}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/periodic.jpg}
-\end{center}
-
-If a task repeats at regular intervals, it's \alert{periodic}.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Periodic Tasks}
-
-Periodic tasks have two relevant attributes:\\
-\quad: $\tau_{k}$, the period; \\
-\quad $c_{k}$, the worst-case computation time
-
-We can calculate the utilization of periodic tasks:
-
-\begin{center}
-$U = \sum\limits_{k=1}^n\dfrac{c_{k}}{\tau_{k}}$
+	\includegraphics[width=0.4\textwidth]{images/fcb.png}
 \end{center}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Overloaded}
+\frametitle{Opening a File}
 
-If $U > 1$, it means the system is overloaded: there are too many periodic tasks. 
+If a user (application) actually wants to make use of a file: open system call. 
 
-We cannot guarantee that the system can execute all tasks and meet the deadlines.
+Open operates on names, the user comprehensible version. 
+
+The file system must then check the global open file table to see if the file is already open somewhere in the system. 
+
+If that file is opened for exclusive access, the open routine returns with an error. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Opening a File}
+
+If non-exclusive access, then there is no need to search for the file or retrieve it by directory; we just make another reference in the process open file table. 
+
+If the file is not already open, then it needs to be retrieved. 
+
+Once the file is found, the FCB is copied into the global open file table and the appropriate reference is added to the process table.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Opening a File}
+
+The process open file table can contain some additional information, like the next section to read or write, the access mode when the file is open, and so on. 
+
+The open system call returns a pointer to the file table and this is the route through which the application performs all file operations. 
+
+In UNIX this reference is called a \alert{file descriptor}; in Windows a \alert{file handle}.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Closing a File}
+
+The opposite operation to opening a file is obviously to close it. 
+
+When a process closes a file, the entry from the open file table can be removed. 
+
+If this is the last reference to the file a process has, then the file can also be removed from the global open file table. 
+
+Metadata may be updated on close.
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Metadata Example: Searching with Spotlight}
+
+An example from Mac OS~X/macOS: the Spotlight system-wide desktop search. 
+
+It was a revelation compared to the previous search options that were slow and did not necessarily include the file content.
 
 \begin{center}
-	\includegraphics[width=0.4\textwidth]{images/allshesgot.jpg}
+	\includegraphics[width=0.3\textwidth]{images/sherlock175.jpg}
 \end{center}
 
-Otherwise, we can devise a schedule.
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Metadata Example: Searching with Spotlight}
+
+Spotlight runs queries quickly over the metadata of the system. 
+
+Spotlight examines each file on creation and modification and uses it to update the metadata related to that file. 
+
+Those items are then added to the Spotlight index which can be queried rapidly.
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Only Periodic?}
+\frametitle{Spotlight Search}
 
-If the only tasks in the system are periodic ones, then we can create a fixed schedule for them.
+This is a specific case of preparing the data in advance. 
 
-Example: classes at UW.
+Another example is in exporting data to Excel. 
 
-But life is rarely so nice.
+To export this data, there are two possible ways to do it.
+
+One is to examine and process the data for the Excel file at the time of request. 
+
+The other is to maintain that data separately, and when the Excel report is asked for, take that data and put it in the Excel file.
+
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Aperiodic Tasks}
+\frametitle{Maintaining Metadata}
 
-Aperiodic tasks occur irregularly with no minimum interval.
+Part of the difficulty with maintaining metadata is when to update it. 
+
+The longer the time between metadata updates, the higher the chance that there will be a user request that gets back out-of-date data. 
+
+The faster the metadata updates, the more time and processing power is spent creating and updating this metadata.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Opening and Reading from a File}
 
 \begin{center}
-	\includegraphics[width=0.4\textwidth]{images/aperiodic.jpg}
+	\includegraphics[width=0.75\textwidth]{images/file-system-structures.png}
 \end{center}
 
-If we expect an average arrival rate of 3 requests per second, there is still a 1.2\% chance that eight or more requests appear within 1~second
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Sporadic Task}
+\frametitle{Virtual File System}
 
-Sporadic tasks are aperiodic, but they require meeting deadlines.
+There are a lot of different file systems, like ext3, ZFS... 
+
+These may co-exist in a system, though a partition will be formatted in only one.
+
+From the user's perspective, however, these operate identically. 
+
+This is because of an additional layer of abstraction: virtual file system (VFS). 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Virtual File System}
+
+There are two main purposes to the VFS. 
+
+The first is to separate the file system operations (like reading, writing, opening, and closing files) from the actual implementation. 
+
+Thus operations can be done with whatever file system is implemented. 
+
+The second is that it provides a mechanism for representing a file, uniquely, throughout a network. 
+
+The file representation structure is called a \textit{vnode}, which is rather like an inode, but inodes are unique only within one file system. 
+
+The VFS distinguishes between local and remote files.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Virtual File System}
 
 \begin{center}
-	\includegraphics[width=0.3\textwidth]{images/sporadic.jpg}
+	\includegraphics[width=0.85\textwidth]{images/vfs.png}
 \end{center}
 
-We need a guarantee that there is a minimum time $\tau_{k}$ between occurrences of the event.
-
-They can overload the system?
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Estimation}
+\frametitle{Virtual File System}
 
-Where do task execution times come from?
+The VFS architecture in Linux has four main objects:
 
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/estimates.jpg}
-\end{center}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Worst Case Scenario}
-
-We always assume the worst case scenario! 
-
-There's two ways to do it: source code analysis and empirical testing.
-
-Err on the side of caution... More money? Worse battery life?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Airline Example}
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/cancelled-flights.jpg}
-\end{center}
-
-Caused by lack of capacity...
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Code Analysis}
-
-Code analysis is exactly what it sounds like.
-
-Try to figure out how long the execution takes on the longest path.
-
-Overestimate; ignores pipelining and compiler optimizations...
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Estimation is Hard}
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/nasa-logo.png}
-\end{center}
-
-NASA/JPL Guidelines:
 \begin{enumerate}
-	\item No recursion and no \texttt{goto}
-	\item Loops must have a fixed bound
-	\item No dynamic memory allocation after init
+	\item inode (an individual file)
+	\item file (an open file)
+	\item superblock (the file system)
+	\item dentry (a directory entry)
+\end{enumerate}
+
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Virtual File System}
+
+For each of those, there are a set of operations defined. 
+
+On a file, for example:
+{\scriptsize
+\begin{verbatim}
+ ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+ ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *); 
+ int (*open) (struct inode *, struct file *);
+ int (*flush) (struct file *, fl_owner_t id);
+ int (*release) (struct inode *, struct file *);
+\end{verbatim}
+}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Directory Implementation}
+
+\begin{center}
+	\includegraphics[width=0.75\textwidth]{images/directory.png}
+\end{center}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Directory Implementation}
+
+A directory is, after all, not much beyond a set of files. 
+
+And yet, there is a choice to be made in implementing them.
+
+A linear list versus a hash table? 
+
+Both concepts should be familiar to you from data structures and algorithms.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Directory Implementation}
+
+The linear list option is certainly the simplest. 
+
+Creating a new file: search the directory to see if there is a matching file name. 
+
+If not, insert that new entry in the list. 
+
+Deletion is also simple: search the list for the matching file and remove it; if it is the last reference to that file, we can free up the space. 
+
+The real disadvantage to linear lists is that searching takes a long time. 
+
+Searching through a directory can take quite a while.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Directory Implementation}
+
+Alternatively, we could use a hash table. 
+
+The hash is computed based on the file name, and of course there will need to be some strategy for dealing with hash collisions. 
+
+Still, neither of these is satisfactory. 
+
+What we really want is a more complex structure: a tree.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{AVL and B-Trees}
+
+
+An AVL tree might be good as a way of storing ordered data. 
+
+It does not match well with the block system of a hard drive. 
+
+Instead, we will examine a B-Tree, a variation on a binary search tree. 
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{B-Tree}
+
+Each node should occupy one block, so each node can contain a lot of info. 
+
+File \& directory info is linearly ordered, but a block does not need to be full. 
+
+If a leaf node gets full, we can split it into two half-full blocks. 
+
+Keeping the tree balanced means it takes about the same amount of time to find an item wherever it is.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{B-Tree Structure}
+
+A B-Tree structure, formally, has the following characteristics:
+
+\begin{enumerate}
+	\item The tree is made up of nodes (have children) and leaves (have no children).
+	\item Each node contains at least one key identifying a file record, and more than one pointer to child nodes or child leaves.
+	\item Each node has some maximum number of keys.
+	\item The keys in a node are stored in non-decreasing order.
+\end{enumerate}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{B-Tree Properties}
+
+Properties of the B-Tree:
+
+\begin{enumerate}
+	\item Every node has at most $2d-1$ keys and $2d$ children ($2d$ pointers).
+	\item Every node other than the root has at least $d-1$ keys and $d$ pointers. Each internal node except the root is at least half full and has at least $d$ children.
+	\item All leaves appear on the same level.
+	\item A non-leaf node with $k$ pointers contains $k-1$ keys.
 \end{enumerate}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Empirical Observation}
+\frametitle{Searching a B-Tree}
 
-If you already have a version $n$ of the system and want to build version $n+1$: extrapolate?
+To find something in a B-Tree, the general algorithm is fairly simple:
 
-Otherwise, simulate.
+\begin{enumerate}
+	\item Start at the root node. 
+	\item If the key is in the current node, it is found, and the algorithm terminates.
+	\item If the key is less than the smallest key in this node, follow the leftmost pointer; go to step 2.
+	\item If the key is greater than the largest key in this node, follow the rightmost pointer; go to step 2.
+	\item If the key is between the values of two adjacent keys, follow the pointer between them; go to step 2.
+\end{enumerate}
 
-Simulation must be representative or misleading.
 
-\end{frame}
-
-\begin{frame}
-\frametitle{Confidence Intervals}
-
-It's possible to estimate using known mathematical techniques the worst case runtime with the \alert{confidence interval}.
-
-We might say that the maximum time is $t$ with 99\% confidence, based on the standard deviation.
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Ready to Schedule Some?}
+\frametitle{B-Tree Insertion}
 
-Now that we understand real-time systems and classification...
+Insertion into the B-Tree is more complicated:
 
-Let's actually schedule some!
+\begin{enumerate}
+	\item Search the tree for the key. If it is not found, then we are at least looking at the block where it would be if it were there.
+	\item If this node has fewer than $2d-1$ keys (that is, it is not full), insert the key into this node in the proper sequence. The algorithm terminates.
+	\item If the node is full, split this node around the median key into two new nodes with $d-1$ keys each. Promote the median key to the higher level. If the new node is less than the median key, insert it in the left-hand new node; otherwise into the right.
+	\item The promoted node is inserted into the parent node in order, splitting the parent if the parent is already full.
+	\item If the process of promotion reaches the root node and the root is full, then splitting and promotion occurs and the height of the tree increases by 1.
+\end{enumerate}
+
 
 \end{frame}
 
+
+
+\begin{frame}
+\frametitle{B-Tree Operations}
+
+
+\begin{center}
+	\includegraphics[width=0.9\textwidth]{images/b-tree-insert-top.png}
+\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{B-Tree Operations}
+
+
+\begin{center}
+	\includegraphics[width=0.9\textwidth]{images/b-tree-insert-bottom.png}
+\end{center}
+
+
+\end{frame}
 
 \end{document}
 

@@ -1,556 +1,754 @@
 \input{configuration}
 
-\title{Lecture 16 --- POSIX Threads (pthread) }
+\title{Lecture 16 --- Scheduling: Idling, Priorities, Multiprocessor }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
-	University of Waterloo}
+  University of Waterloo}
 \date{\today}
 
 
 \begin{document}
 
 \begin{frame}
-	\titlepage
+  \titlepage
 
-\end{frame}
+ \end{frame}
 
-
-\begin{frame}
-	\frametitle{The POSIX Thread}
-
-	The term \texttt{pthread} refers to the POSIX standard (also known as the IEEE 1003.1c standard) that defines thread behaviour in UNIX.
-
-Wait, why are we talking about this?!
-
-This is an embedded systems type course...
-
-\end{frame}
-
-\begin{frame}
-	\frametitle{The POSIX Thread}
-
-The pthread model is very common and used all across industry.
-
-Knowing about this might seriously help you get a co-op job.
-
-
-It will also help you if you want to take ECE~459 in the future...\\
-\quad Statistically, many of you do! 
-
-\end{frame}
 
 
 \begin{frame}
-	\frametitle{The POSIX Thread}
-	\begin{itemize}
-		\item \texttt{pthread\_create}
-		\item \texttt{pthread\_exit}
-		\item \texttt{pthread\_join}
-		\item \texttt{pthread\_detach}
-		\item \texttt{pthread\_yield}
-		\item \texttt{pthread\_attr\_init}
-		\item \texttt{pthread\_attr\_destroy}
-		\item \texttt{pthread\_cancel}
-		\item \texttt{pthread\_testcancel}
-	\end{itemize}
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Let's Make a New Thread}
-
-	\begin{lstlisting}[language=C]
-pthread_create( pthread_t *thread, 
-		const pthread_attr_t * attr, 
-		void *(*start_routine)( void * ), 
-		void *arg);
-\end{lstlisting}
-
-	\texttt{thread}: a pointer to a \texttt{pthread} identifier and will be assigned a value when the thread is created.
-
-	\texttt{attr}: attributes; may be \texttt{NULL} for defaults.
-
-	\texttt{start\_routine}: the function the new thread is to run.
-
-	\texttt{arg}: The argument passed to the routine we want to start.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Start Routine}
-
-	The type of \texttt{start\_routine} above is a function signature.
-
-	Thus, the \texttt{pthread\_create} function has to be called with the name of a function matching that signature, such as:
-
-	\begin{lstlisting}[language=C]
-void* do_something( void* start_params )
-\end{lstlisting}
-
-	After creating a new thread, the process has two threads in it.
-
-	Scheduling of the threads is up to the operating system.
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{There Can Be Only One}
-
-	C: it is normal to have a single return value from a function, but usually we can have multiple input parameters.
-
-	But here we get only one of each?
-
-	Define a \texttt{struct} for the argument and return type!
-
-	\begin{lstlisting}[language=C]
-void* function( void * void_arg ) {
-  parameters_t *arguments = (parameters_t*) args;
-  /* continue after this */
-}
-\end{lstlisting}
-
-	We have to cast it inside the thread anyway...
-
-	The caller of the \texttt{pthread\_create} function has to know what kind of argument is expected in the function being called.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Attributes}
-
-	Attributes can be used to set whether a thread is detached or joinable, scheduling policy, etc.
-
-	By default, new threads are usually joinable (that is to say, that some other thread can call \texttt{pthread\_join} on them).
-
-	To prevent a thread from ever being joined, it can be created in the detached state (or use \texttt{pthread\_detach})
-
-	For virtually all scenarios that we will consider in this course the default values will be fine.
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Threadception}
-
-There is no mandatory hierarchy of threads.
+\frametitle{Scheduling Algorithms, Continued}
 
 \begin{center}
-	\includegraphics[width=0.7\textwidth]{images/peerThreads.png}\\
-	\hfill Image Credit: Blaise Barney
+	\includegraphics[width=0.3\textwidth]{images/theresmore.jpg}
 \end{center}
 
-New threads can create other threads.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Off We Go}
-
-	The thread executes its function, until of course it gets to the end.
-
-	Usually, it will terminate with \texttt{pthread\_exit}.
-
-	The use of \texttt{pthread\_exit} is not the only way that a thread may be terminated.
-
-	Sometimes we want the thread to persist (hang around), but if we want to get a return value from the thread, then we need it to exit.
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Nobody's Listening}
-
-	If a thread has no return values, it can just \texttt{return NULL;}
-
-	This will send \texttt{NULL} back to the thread that has joined it.
-
-	If the function that is called as a task returns normally rather than calling the exit routine, the thread will still be terminated.
+Carrying on from last time, we will examine some more scheduling algorithms.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Oh... Guess You Didn't Need This After All}
-
-	Another way a thread might terminate is if the \texttt{pthread\_cancel} function.\\
-	\quad We'll come back to this topic in more detail soon.
-
-	A thread may also be terminated indirectly: if the entire process is terminated or if \texttt{main} finishes first (without calling \texttt{pthread\_exit} itself).
-
-	End \texttt{main} with \texttt{pthread\_exit} to automatically wait for all spawned threads.
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Report, Number One!}
+\frametitle{Highest Response Ratio Next}
 
 \begin{center}
-	\includegraphics[width=\textwidth]{images/pike-numberone.jpg}
+	\includegraphics[width=0.8\textwidth]{images/responsive.jpg}
 \end{center}
 
 \end{frame}
 
+\begin{frame}
+\frametitle{Highest Response Ratio Next}
 
-\begin{frame}[fragile]
-	\frametitle{Report, Number One!}
+We will introduce a new measure: \alert{normalized turnaround time}. 
 
-	Like the \texttt{wait} system call, the \texttt{pthread\_join} is how we get a value out of the spawned thread:
+This is the ratio of the turnaround time (the time waiting plus the amount of time taken to execute) to the service time (the time it takes to execute). 
 
-	\begin{lstlisting}[language=C]
-pthread_join( pthread_t thread, void** retval );
-\end{lstlisting}
-
-	\texttt{thread}: the thread you wish to join.
-
-	\texttt{retval}: wait... two stars?
+We can tolerate longer processes waiting a comparatively longer period of time. 
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Gotta Play the Level Again, Only Got 2 Stars}
+\frametitle{Highest Response Ratio Next}
 
-	What we are looking for is a pointer to a void pointer.
+Goal: minimize not only the normalized turnaround time for each process, but to minimize the average over all processes.
 
-	That is, we are going to supply a pointer that the join function will update to be pointing to the value returned by that function.
 
-	Typically we supply the address of a pointer.
-
-	Maybe the example makes it clearer.
 \end{frame}
 
+\begin{frame}
+\frametitle{HRRN}
 
-\begin{frame}[fragile]
-	\frametitle{Collecting Return Value}
+Calculate $R = \frac{w + s}{s}$ 
+where $w$ is the waiting time and $s$ is the service time. 
 
-	\begin{lstlisting}[language=C]
-#include <stdlib.h>
-#include <stdio.h>
-#include <pthread.h>
+The service time is, as always, a guess. 
 
-void * run( void * argument ) { 
-  char* a = (char*) argument;
-  printf("Provided argument is %s!\n", a); 
-  int * return_val = malloc( sizeof( int )); 
-  *return_val = 99; 
-  pthread_exit( return_val );
-}
+When it is time to select the next process to run, choose the process with the highest $R$ value. 
 
-int main( int argc, char** argv ) { 
-  if (argc != 2) {
-      printf("Invalid args.\n");
-      return -1; 
-  }
-  pthread_t t;
-  void* vr; 
+A new process will have a value of 1.0 at the beginning, because it has spent no time waiting (yet). Thus it is not that likely to get selected.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{HRRN}
+
+Jobs with a small $s$, i.e., short jobs, are likely to get scheduled quickly. 
+
+The HRRN approach introduces something important: age of the process. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{HRRN}
+
+A process that has spent a long time waiting rises in priority until it gets a turn. 
+
+So processes will not starve, because even a process that is expected to have a very long $s$ will eventually have a high enough $R$ due to the growth of $w$.
+
+We still need to estimate $s$, which may or may not be simple guessing. 
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multilevel Queue (Feedback)}
+
+\begin{center}
+	\includegraphics[width=0.6\textwidth]{images/levels1.jpg}
+	\includegraphics[width=0.6\textwidth]{images/levels2.jpg}
+\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multilevel Queue (Feedback)}
+
+For the most part, until now, we have treated processes more or less equally (except when we have taken the highest priority process). 
+
+While it might seem very fair, it may not be ideal for a situation where processes behave differently. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multilevel Queue (Feedback)}
+
+A desktop or laptop has many processes running (foreground/background). 
+
+We can apply different scheduling algorithms to different types of process.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multilevel Queue (Feedback)}
+
+The multilevel queue takes the ready queue and breaks it up into several. 
+
+A process can be in one (but only one) of the queues. 
+
+It is assigned to the queue based on some attribute of the process (priority, memory needs, foreground/background, et cetera). 
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multilevel Queue (Feedback)}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/choice-sweat.jpg}
+\end{center}
+
+The foreground queue, for example, could be scheduled by Round Robin, and the background by First-Come, First-Served.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multilevel Queue (Feedback)}
+
+When there are multiple queues, we also need a way of choosing which of the queues to take from next. 
+
+We might say some queues have absolute priority over others, or we might have time slicing amongst the queues. 
+
+This could be balanced evenly (rotate through each) or give more time slices to some queues at the expense of others.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{MLQ Example: CTSS}
+
+An example of this was the Compatible TimeSharing System on the IBM~7094. 
+
+Give CPU-Bound processes longer blocks of time to execute so they would not have to spend so much time swapping. 
+
+In the highest priority class, a process got 1 time slice; in the next one down, a process got 2 time slices; the third class meant 4 time slices, and so on. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{MLQ Example: CTSS}
+
+If a process ran up against the limit of a time slice it was moved down a class. 
+
+So it got a lower priority, but when it did get selected to run, it was able to run with a lower chance of being interrupted.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{CTSS: Ratchet}
+
+Like a few schemes we have seen so far, this is a ratchet. 
+
+A process can move down in the priority list, but there does not appear to be a way for it to move up. 
+
+A process that needed a lot of CPU early on was going to be punished ``forever''.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{CTSS: Meddling Users}
+
+If the user pressed the Enter key, it might be a sign the process was likely to become interactive (and therefore should move up in priority). 
+
+Some genius user (there's always one), figured out that by pressing the enter button repeatedly, his long running processes would finish faster. 
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/meddling.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{CTSS: Meddling Users}
+
+This was a bit unfair; his processes got priority over the others. 
+
+Things really broke down when this individual decided to be nice:\\
+\quad ... He told all his friends. 
+
+Suddenly everyone was doing it and the benefit of the system was lost.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{MLQ/Feedback}
+
+This scheduling algorithm may also be referred to as \alert{feedback}. 
+
+We do not have any information in advance about how long processes will be. 
+
+Assign priority based on the amount of CPU time assigned so far. 
+
+A process that has used a lot of CPU so far gets lower priority.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Guaranteed Scheduling}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/guarantee.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Guaranteed Scheduling}
+
+Promise the users something and then fulfill that promise. 
+
+If there are $n$ users, each gets an equal share (1/$n$) of the CPU time. 
+
+Or with $m$ processes, each process gets 1/$m$ of the CPU time.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Guaranteed Scheduling}
+
+The system must keep track of how much CPU time each process has received. 
+
+It then considers the how this value compares to the ideal. 
+
+If a process has a value of 0.5, it had only half the CPU it ``should'' have received. 
+
+If it has a value of 2.0, it has had double. 
+
+So the scheduling algorithm is then to run the process with the lowest score, trying to keep all values as close to 1.0 as we can
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Lottery}
+
+The lottery is a system to give predictable results with a simple implementation. 
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/lottery.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Lottery}
+
+The premise is that every process gets some number of ``lottery tickets'' for each resource (e.g., CPU). 
+
+When a decision has to be made, a lottery ticket is selected at random. 
+
+The process that holds that ticket gets that resource.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Lottery}
+
+This system provides clarity; if a process has priority $p$, what does that mean? 
+
+If a process has a fraction $f$ of the total tickets, then we can expect that process to get about $f$\% of the resource. 
+
+When a process is created or terminates this may increase or decrease the number of tickets, or result in their redistribution.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Lottery}
+
+More important processes get more tickets \& have a higher chance of winning. 
+
+If there are 100 tickets outstanding, if a process has 25 of them, it has a 25\% chance of winning any given draw. 
+
+To increase a process's chance of winning, give it more tickets.\\
+\quad To decrease it, give it fewer. 
+
+Unlike in the real lottery, though, there is always a winner.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Lottery}
+
+Co-operating processes may be permitted to exchange tickets. 
+
+A client that sends a request to a server might then give its tickets to the server.
+
+This increases the chance the server gets the resources to run next and respond.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Lottery}
+
+This is a lot less overhead than guaranteed scheduling. 
+
+We do not keep track of how much of the resource a process has received. 
+
+Assuming that the lottery system is sufficiently random, over time the resource allocation will tend towards the proportions of the tickets each process holds. 
+
+If process $A$ has 20\% of the tickets, $B$ has 30\%, and $C$ has 50\%, then the CPU will be given to the processes in approximately a 20:30:50 ratio, as expected.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{The Idle Task}
+
+Sometimes our scheduling algorithm cannot produce a new process to run next because there is, quite frankly, nothing to do. 
+
+\begin{center}
+	\includegraphics[width= \textwidth]{images/bored.jpg}
+\end{center}
+
+The actual implementation of the idle thread may vary across different systems. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{The Idle Task}
+
+In some cases it is just repeatedly invoking the scheduler.\\
+\quad In others it does a bit of useless addition.\\
+\quad Or it might just be a whole bunch of \texttt{NOP} instructions. 
+
+The CPU can be told to halt/switch to a low power state. 
+
+Whatever it actually ``does'', the idle thread never has any dependencies on anything else and is always ready to run.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{The Idle Task}
+
+Since the idle task does not necessarily do much, why have it? 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{The Idle Task}
+
+It prevents having special cases in the scheduler, first of all. 
+
+It also provides accounting information about how much of the time the CPU is not doing anything. 
+
+In fact, a lot of the time on the desktop or laptop, task manager will tell you that ``System Idle Process'' is taking up a large percentage of the CPU. 
+
+You will recognize that this just means the CPU is not doing anything;\\
+\quad It does not mean that some system process is using up all your CPU's time.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Making Use of The Time}
+
+Saving power by shutting down (parts of) the processor seems like a nice savings of energy (and potentially increases battery life). 
+
+But: time when the CPU is doing nothing might potentially be put to use.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Making Use of The Time}
+
+
+There are usually some accounting and housekeeping tasks that the CPU can be doing when it has nothing else. 
+ 
+For example, the OS could collect statistical data, or defragment the hard drive.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Bumping the Priority}
+
+Sometimes we get into a situation called a \alert{priority inversion}. 
+
+\begin{center}
+	\includegraphics[width=0.6\textwidth]{images/upsidedown.jpg}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Bumping the Priority}
+
+
+A high priority process is waiting for a low priority process. 
+
+$P_{1}$ is high priority and is blocked on a semaphore, while $P_{2}$ is in a critical section. 
+
+As $P_{2}$ is low priority, it might be a long time before $P_{2}$ is selected again to run and can finish and exit the critical section. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Priority Inversion}
+
+$P_{1}$ cannot run, because it is blocked, and it could be blocked for a long time. 
+
+In the meantime, other processes with lower priority than $P_{1}$ (but higher than $P_{2}$) carry on execution. 
+
+Having $P_{1}$ waiting for the lower priority processes is rather undesirable.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Priority Inheritance}
+
+The solution is \alert{priority inheritance}. 
+
+The right thing to do is to bump up the priority of $P_{2}$, temporarily, to be equal to that of $P_{1}$, so that $P_{1}$ can be unblocked as quickly as possible. 
+
+To generalize, a lower priority process should inherit the higher priority if a higher priority process is waiting for a resource the lower priority process holds. 
+
+So $P_{2}$ will get selected, will execute and exit the critical section. 
+
+Its priority then falls, meaning $P_{1}$ will be selected and may continue.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Priority Inheritance}
+
+A famous case of priority inversion took place on the Mars Pathfinder rover.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/pathfinder.jpg}
+\end{center}
+
+The solution was to enable priority inheritance.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multiprocessor Scheduling}
+
+If you thought scheduling for a single processor was complicated enough, well, things are about to get exponentially harder. 
+
+When we have more than one processor working on things at a time, then the complexity increases dramatically. 
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multiprocessor Systems}
+
+We can classify multiprocessor systems into three major buckets:
+
+\begin{enumerate}
+	\item \textbf{Distributed}.
+	\item \textbf{Functionally Specialized}.
+	\item \textbf{Tightly Coupled}.
+\end{enumerate}
+
+The third is our focus here.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multiprocessor: Granularity}
+
+Then we have to worry about the interactions of various processes.
+
+Specifically, how often they plan to interact.
+
+\begin{center}
+\begin{tabular}{l|l|l}
+	\textbf{Grain Size} & \textbf{Description} & \textbf{Interval (Instructions)}\\ \hline
+	Fine & Single instruction stream & $< 20$ \\\hline
+	Medium & Single application & $20 - 200$ \\\hline
+	Coarse & Multiple processes & $200 - 2000$ \\\hline
+	Very Coarse & Distributed computing & $2000 - 1$M \\\hline
+	Independent & Unrelated processes & N/A \\
+
+\end{tabular}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Granularity}
+
+The finer-grained the parallelism, the more care and attention needs to be given to how we are going to schedule a process in a multiprocessor system. 
+
+If the processes are independent, then there is not too much to worry about. 
+
+If we are taking a single process's thread and doing different instructions on different CPUs, then we have to be very careful.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Asymmetric vs Symmetric}
+Asymmetric multiprocessing: a boss processor and this one alone is responsible for assigning work and managing the kernel data structures. 
+
+Symmetric multiprocessing, each processor is responsible for scheduling itself. 
+
+We will need to make use of mutual exclusion and other synchronization techniques in the kernel to prevent errors.
+
+We do not want to have two processors trying to dequeue from the ready queue at the same time, after all.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Processor Affinity}
+
+Imagine that every processor has its own cache (e.g., the L1, L2, \& L3 caches).
+
+We want to have \alert{processor affinity}. 
+
+A process will have a bunch of its data in the cache of that processor. 
+
+If the process begins executing on another processor, all the data is in the ``wrong'' cache and there will be a lot more cache misses. 
+
+This desire to stick with a certain processor is called processor affinity.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Processor Affinity}
+
+If the OS is just going to make an effort but not guarantee that a process runs on a given processor, that is called \alert{soft affinity}. 
+
+A process can move from one processor to another, but will not do so if it can avoid it. 
+
+The alternative is \alert{hard affinity}: a process will only run on a specified processor (or set of processors). 
+
+Linux, for example, has both soft and hard affinity
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Affinity - NUMA}
+
+For the most part any memory read takes as much time as any other. 
+
+One bus connecting the CPU to all of main memory? That is a safe assumption.
+
+  If the CPU can access some parts of memory faster than others, the system has \alert{non-uniform memory access} (NUMA).
+
+\end{frame}
+
+\begin{frame}
+\frametitle{NUMA}
+
+\begin{center}
+	\includegraphics[width=0.85\textwidth]{images/numa.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{NUMA}
+
+With NUMA: choice of processor should be based on where the memory of the process is located.
+
+The memory allocation routine should also pay attention to where to allocate memory requests.
   
-  pthread_create( &t, NULL, run, argv[1] );
-  pthread_join( t, &vr );
-  int* r = (int*) vr; 
-  printf("The other thread returned %d.\n", *r);
-  free( vr );
-  pthread_exit( 0 );
-}
-\end{lstlisting}
-
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Ah! Ah! Ah!}
-
-	Next, we'll do an example where we don't use the return value of a thread, but do use attributes.
-
-	For the sake of simplicity: we are just going to count!
-
-	\begin{center}
-		\includegraphics[width=0.6\textwidth]{images/countvoncount.jpg}
-	\end{center}
-
-
-\end{frame}
-
-
-
-\begin{frame}[fragile]
-	\frametitle{Slightly Larger Example}
-
-	\begin{lstlisting}[language=C]
-#include <pthread.h>
-#include <stdio.h>
-
-int sum; /* Shared Data */
-
-void *runner(void *param);
-
-int main( int argc, char **argv ) {
-  pthread_t tid; /* the thread identifier */
-  pthread_attr_t attr; /* set of thread attributes */
-
-  if ( argc != 2 ) {
-    fprintf(stderr,"usage: %s <integer value>\n", argv[0]);
-    return -1;
-  }
-  if ( atoi( argv[1] ) < 0 ) {
-    fprintf(stderr, "%d must be >= 0\n", atoi(argv[1]));
-    return -1;
-  }
-
-  pthread_attr_init( &attr ); /* set the default attributes */
-  pthread_create( &tid, &attr, runner, argv[1] ); /* create the thread */
-  pthread_join( tid, NULL );
-  printf( "sum = %d\n", sum );
-  pthread_attr_destroy( &attr );
-  pthread_exit( NULL );
-}
-\end{lstlisting}
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Slightly Larger Example}
-
-
-	\begin{lstlisting}[language=C]
-void *runner( void *param ) {
-  int upper = atoi( param );
-  sum = 0;
-  for ( int i = 1; i <= upper; i++ ) {
-    sum += i;
-  }
-  pthread_exit( 0 );
-}
-\end{lstlisting}
-
-	In this example, both threads are sharing the global variable \texttt{sum}.
-
-	Do we have coordination?
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Coordination, Count to 10}
-	Yes! The parent thread will join the newly-spawned thread (i.e., wait until it is finished) before it tries to print out the value.
-
-	If it did not, the parent would print the sum early.
-
-	Let's do a different take on that program.
-
-	\begin{center}
-		\includegraphics[width=0.6\textwidth]{images/sesamestreet.png}
-	\end{center}
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Slightly Larger Example 2}
-
-	\begin{lstlisting}[language=C]
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-int sum = 0;
-
-void* runner( void *param ) {
-    int upper = atoi( param );
-    for (int i = 1; i <= upper; i++ ) {
-        sum += i;
-    }
-    pthread_exit( 0 );
-}
-\end{lstlisting}
-
-
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Slightly Larger Example 2}
-
-
-	\begin{lstlisting}[language=C]
-int main( int argc, char** argv ) {
-
-    pthread_t tid[3];
-
-    if ( argc != 2 ) {
-        printf("An integer value is required as an argument.\n");
-        return -1;
-    }
-    if ( atoi( argv[1]) < 0 ) {
-        printf( "%d must be >= 0.\n", atoi(argv[1]) );
-    }
-
-    for ( int i = 0; i < 3; ++i ) {
-        pthread_create( &tid[i], NULL, runner, argv[1] );
-    }
-    for ( int j = 0; j < 3; ++j ) {
-        pthread_join( tid[j], NULL );
-    }
-    printf( "sum = %d.\n", sum );
-
-    pthread_exit( 0 );
-}
-\end{lstlisting}
-
-	What happens when we run this program?
-
-\end{frame}
-
-
-\begin{frame}
-	\frametitle{Sometimes...}
-
-	For very small values of the argument, nothing goes wrong.
-
-	For a large number we get some strange and inconsistent results. Why?
-
-	There are three threads that are modifying \texttt{sum}.
-
-	Remember what we said about ``at the same time''? We have to come back to it.
+If there is data in one of the other blocks of memory, it does not mean game over, but it means slower execution.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Thread Cancellation}
+\frametitle{Load Balancing}
 
-	Thread cancellation is exactly what it sounds like: a running thread will be terminated before it has finished its work.
+If we have 4 processors, it is less than ideal to have one processor at 100\% utilization and 3 processors sitting around doing nothing. 
 
-	The thread that we are going to cancel is called the \textit{target}.
+We want to keep the workload balanced between all the different systems. 
 
-	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/canceled_flight.jpg}
-	\end{center}
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Cancellation Type}
-
-	\begin{enumerate}
-		\item \textbf{Asynchronous Cancellation}
-		\item \textbf{Deferred Cancellation}
-	\end{enumerate}
-
-	thread can declare its own cancellation type through the use of the function:
-	\begin{lstlisting}[language=C]
-pthread_setcanceltype( int type, int *oldtype )
-\end{lstlisting}
-
-	\texttt{type}: \texttt{PTHREAD\_CANCEL\_DEFERRED} or \texttt{PTHREAD\_CANCEL\_ASYNCHRONOUS}
-
-	\texttt{oldtype}: previous state, if we care.
+The process for this is \alert{load balancing}.
 
 \end{frame}
 
 \begin{frame}
-	\frametitle{Send Cancellation}
+\frametitle{Load Balancing}
 
-	The pthread command to cancel a thread is \texttt{pthread\_cancel} and it takes one parameter (the thread identifier).
+Load balancing is typically necessary only where each processor has its own private queue of processes to run. 
 
-	To check if the current thread has been cancelled, the function call is \texttt{pthread\_testcancel} which takes no parameters.
+If there is a common ready queue then load balancing will tend to happen all on its own.
 
-	It's polite to check this, if it's a risk.
+A processor with nothing to do will simply take the next process from the queue. 
+
+But in most of the modern operating systems we are familiar with, each processor does have a private queue, so we need to do load balancing.
 
 \end{frame}
-
 
 \begin{frame}
-	\frametitle{Cancellation Points}
-	A  large number of functions are \alert{cancellation points}.
+\frametitle{Push and Pull Load Balancing}
 
-	That is, the POSIX specification requires there is an implicit check for cancellation when calling one of those functions.
+There are two, non-exclusive approaches: \alert{push} and \alert{pull} migration. 
 
-	Even more are ``potential cancellation points'' -- maybe, maybe not?
+
+Push migration: a task periodically checks how busy each processor is and then moves processes around to balance things out (to within some tolerance). 
+
+Pull migration: a processor with nothing to do ``steals'' a process from the queue of a busy processor. 
+
+The Linux and FreeBSD schedulers, for example, use both.
 
 \end{frame}
-
-
 
 \begin{frame}
-	\frametitle{Not Now!}
-	Sometimes a thread could die before it has cleaned up.
+\frametitle{Balancing Affinity}
 
-	\begin{center}
-		\includegraphics[width=0.5\textwidth]{images/tenthdoctor.jpeg}
-	\end{center}
+Load balancing sometimes conflicts with processor affinity. 
 
-	This can leave memory allocated, things locked...
+If a process has a hard affinity for a processor, it cannot be migrated. 
 
-\end{frame}
-
-
-\begin{frame}[fragile]
-	\frametitle{Cleanup Handler}
-
-	We can prevent this with cancellation handlers.
-
-	The functions for cleaning up are:
-
-	\begin{lstlisting}[language=C]
-/* Register cleanup handler, with argument */
-pthread_cleanup_push( void (*routine)(void*), void *argument );
-/* Run if execute is non-zero */
-pthread_cleanup_pop( int execute );
-\end{lstlisting}
-
-	The push function always needs to be paired with the pop function at the same level in your program (where level is defined by the curly braces).
+If there is a soft affinity, it can be moved, but it is not our first choice.
 
 \end{frame}
 
+\begin{frame}
+\frametitle{Balancing Affinity}
 
-\begin{frame}[fragile]
-	\frametitle{Don't You Forget About Me}
+Should we always move a process despite the fact that it means a whole bunch of cache misses?
 
-	Consider the following code:
-	\begin{lstlisting}[language=C]
-void* do_work( void* argument ) {
-  struct job * j = malloc( sizeof( struct job ) );
-  /* Do something useful with this structure */
-  /* Actual work to do not shown */
-  free( j );
-  pthread_exit( NULL );
-}
-\end{lstlisting}
+Should we never do so and leave processors idle? 
 
+Perhaps the best thing to do is to put a certain ``penalty'' on moving.
+
+Only move a process from one queue to another if it would be worthwhile (i.e., the imbalance is sufficiently large).
 
 \end{frame}
 
+\begin{frame}
+\frametitle{Multicore Processors}
 
+Before the early 2000s, the only way to get multiple processors in the system was to have multiple physical chips. 
 
-\begin{frame}[fragile]
-	\frametitle{Don't You Forget About me}
+If you open up your laptop you are likely to find one physical chip. 
 
-	\begin{lstlisting}[language=C]
-void cleanup( void* mem ) {
-  free( mem );
-}
+What gives? \alert{Multicore processors}. 
 
-void* do_work( void* argument ) {
-  struct job * j = malloc( sizeof( struct job ) );
-  pthread_cleanup_push( cleanup, j );
-  /* Do something useful with this structure */
-  /* Actual work to do not shown */
-  free( j );
-  pthread_cleanup_pop( 0 ); /* Don't run */
-  pthread_exit( NULL );
-}
-\end{lstlisting}
-
+As far as the operating system is concerned, a quad-core chip is made of four logical processors.
 
 \end{frame}
 
+\begin{frame}
+\frametitle{Multicore Processors}
 
+On a cache miss the CPU core can spend a lot of time (50\%?) of its time waiting for that read to take place.
 
+  We might refer to periods of time where there is computation as a compute cycle, and time spent waiting for memory as a \alert{memory stall}. 
+  
+  These tend to alternate, though the length of time for each will vary. 
+  
+  A question of how often memory is accessed and how many cache misses.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Compute Cycles and Memory Stalls}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/memory-stall.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Memory Stall}
+
+During a memory stall, the processor core may have nothing to do. 
+
+You can sometimes move instructions around so that the memory read goes out ``early''.
+
+A few other instructions can be executed in the meantime. 
+
+(Take CPU design / programming for performance classes.)
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hyperthreading}
+
+To offset this problem, the solution was originally called \alert{hyperthreading}.
+
+Two threads are assigned to each core; if one thread does a memory access or stalls, the code can switch to another thread with a limited penalty. 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hyperthreading}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/hyperthreading.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Hyper- and Multithreading}
+
+Coarse-grained multithreading: flushing the instruction pipeline. 
+
+That is expensive. 
+
+Fine-grained multithreading: alternation between 2 threads in the pipeline. 
+
+The cost of switching between these two threads is small.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Two Levels of Scheduling}
+
+So now we have two different levels of scheduling.
+
+1. Assigning a process or thread to a processor (job of the operating system)
+
+2. When to swap between the two threads in the core (job of the hardware). 
+
+\end{frame}
 
 
 \end{document}
