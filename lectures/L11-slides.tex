@@ -1,0 +1,305 @@
+\input{configuration}
+\newcounter{pf}
+
+\title{Lecture 11 --- Memory-Mapped I/O}
+
+\author{Jeff Zarnett \& Mike Cooper-Stachowsky \\ \small \texttt{jzarnett@uwaterloo.ca, mstachowsky@uwaterloo.ca}}
+\institute{Department of Electrical and Computer Engineering \\
+  University of Waterloo}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+
+ \end{frame}
+
+
+\begin{frame}
+\frametitle{Take Me There}
+
+Memory-mapped I/O -- to communicate with a HW device, an area that looks like main memory really represents the HW device.
+
+This simplifies some operations!
+
+Kind of like how UNIX treats everything as a file...
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Port Mapped}
+
+This contrasts with the older-style \alert{port-mapped} I/O
+
+There are different CPU instructions and separate registers used to communicate with the device. 
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/translator.jpg}
+\end{center}
+
+It's not that this does not work, but it's just more difficult to work with.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{I/O or Control}
+
+Maybe a better name for this is ``Memory Mapped Control''.
+
+The device is controlled via setting some voltages (1s, 0s) on the chip.
+
+If we map those to memory locations, we know how to read write the 1s and 0s to the device just as if it were memory.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Peripheral}
+
+Hardware devices outside the CPU and memory are sometimes referred to as peripheral devices.
+
+A peripheral is an often optional circuit that interfaces with the CPU.
+
+Examples: UART, I2C, GPIO...
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Okay, but where are they?}
+
+The data sheet for the device will tell you where the registers are.
+
+One option: absolute address (which is nice).
+
+Other option: base and offset locations.
+
+Why base and offset? Support multiple devices.
+
+
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Consult the Map}
+
+	\begin{center}
+		\includegraphics[width=0.8\textwidth]{images/worldmap.jpg}
+	\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Altenative: \texttt{mmap()}}
+
+	An alternative use for memory-mapping in UNIX involves the use of \texttt{mmap()}, a function nominally used to map a file into memory.
+
+	Then, interact with the file just like memory!
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Mapping}
+	\begin{lstlisting}[language=C]
+void* mmap( void* address, size_t length, int protection, int flag,
+   int fd, off_t offset );
+\end{lstlisting}
+
+	\texttt{address}: where you want the mapped region to go; use \texttt{NULL}.
+
+	\texttt{length}: how many bytes to map.
+
+	\texttt{protection}: rules for how memory can be used.
+
+	\texttt{flag}: mode for mapping.
+
+	\texttt{fd}: file descriptor of the file to map.
+
+	\texttt{offset}: how far from the start of the file mapping begins.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Protection Flags}
+
+	Valid values are \texttt{PROT\_NONE}, \texttt{PROT\_READ}, \texttt{PROT\_WRITE}, and \texttt{PROT\_EXECUTE}.
+
+	They can be combined with the bitwise OR operator.
+
+	Whatever flags you choose have to be consistent with how the file was opened with \texttt{open}.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{\texttt{PROT\_NONE}}
+
+	\begin{center}
+		\includegraphics[width=0.45\textwidth]{images/AllesVerboten.jpg}
+	\end{center}
+
+	What's the point of \texttt{PROT\_NONE}, if all things are forbidden?
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Flags}
+	Flags can be one of two options: \texttt{MAP\_PRIVATE} or \texttt{MAP\_SHARED}.
+
+	Private: modifications are not visible to other processes mapping the same file and not written out to the underlying file.
+
+	Shared: modifications are visible to other processes and written out to the file... but maybe not instantly.
+
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Memory Mapped File}
+
+	\begin{center}
+		\includegraphics[width=0.9\textwidth]{images/memory-mapped-file.png}
+	\end{center}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Protection}
+
+	If we wish to change the protection rules for a section, we use \texttt{mprotect}.
+
+	\begin{lstlisting}[language=C]
+int mprotect( void* address, size_t length, int prot );
+\end{lstlisting}
+
+	\texttt{address}: the memory to modify protection of.
+
+	\texttt{length}: the size of said memory.
+
+	\texttt{prot}: the new protection rules.
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Synchronize}
+
+	\begin{center}
+		\includegraphics[width=0.3\textwidth]{images/sync-icon.png}
+	\end{center}
+
+	\begin{lstlisting}[language=C]
+int msync( void* address, size_t length, int flags );
+\end{lstlisting}
+
+	\texttt{address}: the memory to synchronize.
+
+	\texttt{length}: how many bytes to synchronize.
+
+	\texttt{flags}: mode for synchronization; use \texttt{MS\_SYNC} (blocking).
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Unmap}
+
+	\begin{lstlisting}[language=C]
+int munmap( void* address, size_t length );
+\end{lstlisting}
+
+	\texttt{address}: the memory to unmap.
+
+	\texttt{length}: how many bytes to unmap.
+
+	A segment would be unmapped automatically when a process exits, but as always it is polite to unmap it as soon as you know that you are done with it.
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\frametitle{Memory Mapping Example}
+
+	\begin{lstlisting}[language=C]
+#define _XOPEN_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/shm.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+int main( int argc, char** argv ) { 
+
+    int fd = open( "example.txt", O_RDWR );
+    
+    struct stat st; 
+    stat( "example.txt", &st );
+    ssize_t size = st.st_size;
+    void* mapped = mmap( NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0 );  
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Memory Mapping Example}
+
+	\begin{lstlisting}[language=C]
+    int pid = fork();
+    if ( pid > 0 ) { /* Parent */
+        waitpid( pid, NULL, 0 );
+        printf("The new content of the file is: %s.\n", (char*) mapped);
+        munmap( mapped, size );
+    } else if ( pid == 0 ) { /* Child */
+       memset( mapped, 0, size ); /* Erase what's there */
+       sprintf( mapped, "It is now Overwritten");
+       /* Ensure data is synchronized */
+       msync( mapped, size, MS_SYNC );
+       munmap( mapped, size );
+    }
+    close( fd );
+    return 0;
+}
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{The Example is... Flawed}
+
+	The example works acceptably in the sense that we successfully overwrite the data with the new data and the parent process sees the change.
+
+	But things get weird if we tried to write fewer bytes than the original message.
+
+	In general, the mapped area size cannot change.
+
+	Linux has \texttt{mremap} but this is not portable...
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Memory-Mapped Files}
+
+How does it work, though?
+
+Basic premise: disk blocks mapped to main memory.
+
+First access is a page fault; subsequent accesses are reads/writes.
+
+\end{frame}
+
+
+
+
+\end{document}
+
