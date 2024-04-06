@@ -68,6 +68,33 @@ Examples: UART, I2C, GPIO...
 
 
 \begin{frame}
+\frametitle{Circuit Problem}
+
+The physical connectors that link one device to the motherboard are called pins.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/686-cpu.jpg}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Pin Management}
+
+The chip only has a fixed number; some pins do multiple things...
+\quad But only ever one at a time.
+
+This implies a need to configure things!
+
+Alright, but let's think about how to control a device...\\
+\quad We need to send data out to those pins.
+
+\end{frame}
+
+
+\begin{frame}
 \frametitle{Okay, but where are they?}
 
 The data sheet for the device will tell you where the registers are.
@@ -80,6 +107,63 @@ Why base and offset? Support multiple devices.
 
 
 \end{frame}
+
+
+\begin{frame}
+\frametitle{Register Types}
+
+\textbf{Configuration}: Set up the device.
+
+\textbf{Data}: Read/Write data locations.
+
+\textbf{Control}: Tell the device what to do!
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{STM Did What?}
+
+The chip has multiple GPIO ports so it's base + offset.
+
+Base locations are given in the memory map; offset in GPIO's documentation.
+
+Addresses are the byte address, but registers are often 32 bits.
+
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Global Enable}
+
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/plugin.png}
+\end{center}
+
+Some chips require global settings or signals to be sent to them.
+
+Example: anything that uses the clock signal needs it sent to it!
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Let's talk RCC}
+
+\alert{RCC}: Reset and Clock Control
+
+These are registers used to manage power.
+
+If we don't need a peripheral, don't send it the clock signal!
+
+If it doesn't get the clock signal, it does nothing and saves power.
+
+
+\end{frame}
+
 
 
 
