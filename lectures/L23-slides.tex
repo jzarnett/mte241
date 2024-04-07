@@ -1,6 +1,6 @@
 \input{configuration}
 
-\title{Lecture 23 --- Reliability: Fail-Soft Operation }
+\title{Lecture 23 --- Reliability: RAID }
 
 \author{Jeff Zarnett \\ \small \texttt{jzarnett@uwaterloo.ca}}
 \institute{Department of Electrical and Computer Engineering \\
@@ -16,351 +16,343 @@
  \end{frame}
 
 
-
 \begin{frame}
-\frametitle{Things Go Wrong}
-
-Except when we talked about hard drives and the Byzantine Generals Problem, we usually think that things will work as they should.
+\frametitle{Failure is Always an Option}
 
 \begin{center}
-	\includegraphics[width=0.5\textwidth]{images/fleshwound.jpg}
+	\includegraphics[width=0.75\textwidth]{images/failure.jpg}
+\end{center}
+
+Sometimes hard drives die -- so now what?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Backups}
+
+Backups help but they are not the only way.
+
+A backup may be a bit out of date?
+
+Are you sure they work?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Now What?}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/rip-hdd.jpg}
+\end{center}
+
+Maybe loss of data, maybe system is down, maybe reduced performance?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Too Good To Be True?}
+
+ What if I told you there exists a solution to this where you not only get higher reliability and availability, but also maybe better performance?
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/hela.jpg}
+\end{center}
+
+It does cost money... But it's not magic.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{The Solution is Called...}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/raid.jpg}
 \end{center}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Reliability Required?}
-
-Downtime is okay for some systems: e.g., my laptop!
-
-Reliability is important for real-time systems...\\
-\quad Downtime may be intolerable if it's life- or safety-critical!
-
-
-Or maybe it just costs money if you have some SLA.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{In French, Le Flat Tire}
-
-Normally, if I get a flat tire, I can't drive until I change the tire.
+\frametitle{The Solution is Called...}
 
 \begin{center}
-	\includegraphics[width=0.5\textwidth]{images/runflat.jpg}
-\end{center}
-
-Run-flat tires have limitations, but the car is functional at reduced capacity.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Goals}
-
-Two distinct goals:
-
-1. Resiliency -- carry on in the event of a failure.
-
-2. Fail-soft -- preserve as much capability as possible or terminate gracefully.
-
-Where did RAID fall in this spectrum?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Resiliency}
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/rocky.jpg}
+	\includegraphics[width=\textwidth]{images/leo.jpg}
 \end{center}
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Resiliency Requirements}
+\frametitle{RAID}
 
-First question is how much resiliency you really need?
-
-
-Is this ``we lose money'' or ``people might die''?
+RAID: Redundant Array of Independent Disks.
 
 
+Multiple different independent disks that work together but appear to the user as if they are one drive/volume.
+
+Can be managed in software or hardware.
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{August 29, 1997...}
+\frametitle{How Much Redundancy?}
+
+Choose level of redundancy based on the data in question.
+
+Is losing data inconvenient? A tragedy? Does it affect uptime?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{MttF}
+
+For any device we can talk about the \alert{mean time to failure}.
+
+This is always an estimate!
 
 \begin{center}
-	\includegraphics[width= \textwidth]{images/judgementday.png}
-\end{center}
-
-But no need to plan for nuclear armageddon (usually).
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Tradeoffs}
-
-This is an engineering design tradeoff: how much extra capacity should we have?
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/flightdelay.jpg}
-\end{center}
-
-Too little capacity: every problem becomes global...\\
-\quad Too much and we wasted money!
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Can We Fix It? Yes We Can!}
-
-Best option for resiliency is to fix it!
-
-Maybe not possible if this is an unrecoverable hardware failure.
-
-Maybe deadlock detection and recovery?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Stiff Upper Lip}
-
-Continue as best we can at reduced capacity.
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/keepcalm.jpg}
+	\includegraphics[width=0.5\textwidth]{images/keanu.jpg}
 \end{center}
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Stiff Upper Lip}
+\frametitle{MttF Math}
 
-Example: 4 CPU cores, all running at 50\% capacity, but one dies?
+Let's say you bought a disk that says its mean time to failure is 100~000 hours (11.4 years)
 
-Maybe running at reduced capacity until a repair comes...
+You might think that this is perfectly fine, even if it lives only half its expected life it's still more than five years and you'll replace it by then!
 
-What if we can't meet all deadlines?
+... but if you are running a data centre and you have 100 of them, the MttF of one of these disks is really only 100~000 / 100 = 1~000 hours (41.66 days).
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Real-Time Resiliency}
+\frametitle{Another One Bites the Dust}
 
-The system is considered \alert{stable} if it will always meet the deadlines of its most critical tasks.
+The textbook example is misleading -- hard drive deaths aren't evenly distributed!
 
-Even if lower priority tasks may not be completed at all!
+It's more likely that everything is fine for a while and then drives start dying in quick succession. 
 
-Painful choices may need to be made.
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Shut It Down!}
+\frametitle{No Free Lunch}
 
-Perhaps it's sensible to do an orderly shutdown.
+So if we want to have improved reliability, it's obvious this is going to have a cost. 
 
-Prevent data corruption, but cannot carry on.
+The cost is in the redundancy; having more than one copy of the data and those copies are stored on different physical storage media.
+
+Either: more money for more disks, or less total capacity for more redundancy.
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Stop. Hammertime.}
+\frametitle{Mirroring}
 
-Cease all operation or execution immediately.
+Obvious approach is \alert{mirroring}.
 
-This may cause some damage, but may be the least bad choice.
+If one of the disks dies, then the data is on the other disk and it's not lost.
+
+
+How fast do we have to replace it?
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Quicker is Better}
+
+If the mean time to failure is 100~000 hours and the mean time to repair is 10 hours?
+
+The mean time to data loss is $(100~000)^{2}/(2 \times 10) = 500 \times 10^{6}$ hours (about 57~000 years).
+
+Is that realistic?
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Faults and Fault Tolerance}
+\frametitle{Simple Mirror}
 
-Until now, vague words about ``something going wrong''.
+This version means there's additional cost to every write...
 
-What is a fault and failure?
+What happens if one succeeds and one fails?
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Faults and Fault Tolerance}
+\frametitle{Level, Please}
 
-\alert{Failure}: When the response (outcome) deviates from the specification as a result of an error.
+RAID is describes as having different ``levels''.
 
-\alert{Error}: A manifestation of a fault.
+Each has a different configuration; higher number isn't always better.
 
-\alert{Fault}: An erroneous hardware or software state of some variety.
+There are seven basic levels that have broad acceptance.
 
 \end{frame}
 
-\begin{frame}
-\frametitle{Types of Fault}
-
-\textbf{Permanent}: dead hard drive, software bug.
-
-\textbf{Intermittent}: fault hardware chip.
-
-\textbf{Transient}: cosmic radiation?
-
-\end{frame}
 
 \begin{frame}
-\frametitle{Prevent Fault}
-
-Instead of jumping right to fault tolerance, what about prevention?
+\frametitle{No Thanks}
 
 \begin{center}
-	\includegraphics[width=0.5\textwidth]{images/bttf2.jpg}
+	\includegraphics[width=0.5\textwidth]{images/jbod.jpg}
 \end{center}
 
-What strategies would you use?
+This is the do-nothing approach.
+
+Manual backups? 
 
 \end{frame}
 
-\begin{frame}
-\frametitle{Not Perfect}
-
-Following appropriate design, implementation, and testing processes will only make faults less likely.
-
-It is also important to resist the pressure to drop or degrade these processes when user time pressure.
-
-Still need to think about tolerance...
-
-\end{frame}
 
 \begin{frame}
-\frametitle{Fault Tolerance}
+\frametitle{RAID 0}
 
-We already know a few things about fault tolerance from earlier topics.
+Disk striping; no redundancy.
 
 \begin{center}
-	\includegraphics[width=0.5\textwidth]{images/biff.jpg}
+	\includegraphics[width=\textwidth]{images/raid0.png}
 \end{center}
 
-Can you think of some?
+Some use cases for it...
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{RAID 1}
+
+Mirroring
+
+\begin{center}
+	\includegraphics[width= \textwidth]{images/raid1.png }
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{RAID 2}
+
+Bit Parity
+
+\begin{center}
+	\includegraphics[width= \textwidth]{images/raid2.png }
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{RAID 3}
+
+Byte Parity
+
+\begin{center}
+	\includegraphics[width= \textwidth]{images/raid3.png}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{RAID 4}
+
+Block Parity
+
+\begin{center}
+	\includegraphics[width= \textwidth]{images/raid4.png}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{RAID 5}
+
+Distributed Block Parity
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/raid5.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{RAID 6}
+Like RAID 5 but can survive more disk failures.
+
+\begin{center}
+	\includegraphics[width= \textwidth]{images/raid6.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Combining Levels}
+
+here are a number of ways that RAID may be combined, such as RAID 01, 10, 50... 
+
+These are best thought of as being something like 1 + 0 rather than ten, because what we're doing is combining both these things at two different levels. 
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Fault Tolerance Techniques}
+\frametitle{Combining Levels}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/raid10-01.png}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Choosing the Right Level}
 
 \begin{itemize}
-	\item Process Isolation
-	\item Dual-Mode Operation
-	\item Preemptive, Priority-Based Scheduling
-	\item Checkpoints, Transactions, Rollback
-	\item RAID
-	\item Checksums, Parity Bits, ECC...
+	\item How critical is it that data is not lost?
+	\item What is the budget?
+	\item How important is performance?
+	\item Do we need to be able to carry on in the event a disk dies?
+	\item Are rebuild times important?
 \end{itemize}
 
 \end{frame}
 
+
 \begin{frame}
-\frametitle{Types of Redundancy}
+\frametitle{Choosing the Right Level}
 
-\alert{Information redundancy}: checksums, parity bits, ECC...
+No one-size-fits-all answers.
 
-\alert{Physical redundancy}: two CPUs instead of one...
+RAID 2, 3, 4 not very popular...
 
-\alert{Temporal redundancy}: TCP communication, resend...
+Choose what makes sense!
 
 \end{frame}
 
-\begin{frame}
-\frametitle{Space Shuttle}
-
-The Space Shuttle had both physical and temporal redundancy.
-
-\begin{center}
-	\includegraphics[width=0.5\textwidth]{images/spaceshuttle.jpg}
-\end{center}
-
-Important thing: no single point of failure!
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Now I Have Two Problems}
 
 
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/achievement.jpg}
-\end{center}
 
-We covered this a little bit in the Byzantine Generals Problem.
-
-We'll consider one in particular: clock synchronization.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Clock Synchronization}
-
-It is not trivial to get two independent systems to agree on what time it is.
-
-\begin{center}
-	\includegraphics[width=0.4\textwidth]{images/jumanji.jpg}
-\end{center}
-
-Inevitably, all clocks except the universal reference clock are off by some amount; it's just a question of how much! 
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Disagreement Means Problems}
-
-It's easy to imagine scenarios where independent systems who don't agree on what time it is will misbehave.
-
-Ever been in a video call with lag?
-
-Time zones also matter!
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Quartz Clocks}
-
-Clocks frequently use quartz for synchronization, but there is always drift and measurement error.
-
-A quartz clock will typically vary by about half a second per day, so the idea of systems being off by a full second is quite reasonable.
-
-
-Just imagine System A is fast by 0.5s and System B is slow by 0.5s.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Time Travel is Real}
-
-In a non-real time operating system, it's often okay to just change the clock to the correct time and just jump there.
-
-But for a real-time system, breaking the expectation of linear time can cause events to run again, so typically we do not wish to do that.
-
-The solutions are effectively a graduated slowdown or speedup... but to when?
-
-\end{frame}
-
-\begin{frame}
-\frametitle{NTP}
-A possible solution is something like the Network Time Protocol.
-
-Effectively, it's difficult or impossible to get more than one system to agree on what time it is. 
-
-Better: build your system to account for these things.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Distributed Systems Course}
-
-All of this is just a very simple overview of some of the issues that might arise when we have multiple systems for redundancy. 
-
-This is a complicated subject and is a whole 4th year ECE technical elective that you could take!
-
-
-\end{frame}
 
 \end{document}
 
