@@ -1,0 +1,401 @@
+\input{configuration}
+
+
+\title{Lecture 13 --- Thread Implementation }
+
+\author{Jeff Zarnett \& Mike Cooper-Stachowsky \\ \small \texttt{jzarnett@uwaterloo.ca, mstachowsky@uwaterloo.ca}}
+\institute{Department of Electrical and Computer Engineering \\
+  University of Waterloo}
+\date{\today}
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Make it So}
+
+With the thread theory behind us, now we need to actually work with some.
+
+\begin{center}
+	\includegraphics[width=0.3\textwidth]{images/making-it-so.jpg}
+\end{center}
+
+The model we'll use is a bit simpler than the UNIX thread (but we'll get there).
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{How To Get Started}
+
+A thread runs code and has some function that it starts with...\\
+\quad Like \texttt{main()} in C, but it can be named anything.
+
+There must be a way of keeping track of where we are in the execution.
+
+We also need a stack for each thread (so a stack pointer).
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Starting a Thread}
+
+Thread functions all have the same prototype:
+
+\begin{lstlisting}[language=C]
+void * function_name( void * argument ) {
+  /* Interpret the argument(s) as needed here */
+ 
+  /* Many threads never return, so they just loop forever as needed */ 
+}
+\end{lstlisting}
+
+Why \texttt{void *} for input and output?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Anything Goes}
+
+The OS designer can't know what input and output an arbitrary thread will have.
+
+So let the programmer choose! \texttt{void *} means it can be anything.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/reality.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{I'll Show Myself Out}
+
+Threads rarely exit in a real-time operating system.\\
+\quad Generally it's a continuous-operation system doing specific things.
+
+
+You can make the return type \texttt{void} in your OS, but it's not 100\% correct.
+
+More correct: exit from a thread is a system call, and tells the OS this thread cannot run ever again.
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Starting the New Thread}
+
+If we've defined the starting function, can we just... call it?
+
+No; that would run it in the \textit{current} thread.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/doitmyself.png}
+\end{center}
+
+We need to run it as a new thread instead. 
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{It's like Delegation}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/delegate2.jpg}
+\end{center}
+
+In addition to the code to run, we need a new stack and the thread context.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Context}
+
+Context is the data a thread needs while running.
+
+Obvious example: keep track of progress in the code!
+
+But also: register data and stack pointer.
+
+In a bigger OS: maybe permissions, open files, etc.
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Own Stack}
+
+Remember: the stack is local storage for each thread...\\
+\quad And also the execution trace to how we got here.
+
+If we had one shared stack for everyone, all threads write to it. 
+
+Overwrite each other's data, overlapping execution traces...
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/chaoselmo.jpg}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Where to Thread Stacks Come From?}
+
+So if a thread needs a stack, where does it come from?
+
+The OS can just designate an area of memory as the stack for a given thread.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/thateasy.png}
+\end{center}
+
+
+You could divide the OS stack into different pieces, one for each thread.
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Stack Pool}
+
+If each thread gets a piece of the OS stack, can they overwrite each other if one of the stacks gets too big?
+
+Yes (unless we have virtual memory or similar). So on the Cortex M... yes.
+
+This sort of stack overflow can corrupt data, and can't be prevented.\\
+\quad We just say it's the application programmer's problem.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Minimal Thread Control Block}
+
+We covered the idea of the process control block fairly thoroughly. 
+
+A minimal thread control block (TCB) has:
+
+\begin{itemize}
+	\item Identifier
+	\item Instruction pointer
+	\item Stack pointer
+\end{itemize}
+
+We may or may not have the starting point of the thread in there.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Context is Not Data}
+
+Context is not entirely the same as the data.
+
+Context is how we know what we're doing and where we are.
+
+Data is things that a thread needs to do its job.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Corruption}
+
+If our context gets corrupted we'll crash (hard fault) very quickly.
+
+If the data is corrupted, the output is wrong or garbage...\\
+\quad We may get a hard fault, but not necessarily.
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/wronganswer.jpg}
+\end{center}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Take Turns}
+
+For threads to take turns on the CPU, it means we have to save and load their context information. 
+
+When thread A's context is loaded, it can run.
+
+When its turn is over, save the context, and load that of thread B.
+
+... Now generalize that to arbitrarily many threads.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Whose Turn is it Anyway?}
+
+\begin{center}
+	\includegraphics[width=0.3\textwidth]{images/whoseturn.jpg}
+\end{center}
+
+That's a scheduling decision, so we'll come back to that soon.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Setting up a Thread}
+
+\begin{enumerate}
+	\item Create the TCB.
+	\item Designate some area of memory to be the stack.
+	\item Set up the stack to contain the context of the thread.
+	\item The Kernel must:
+		\begin{itemize}
+			\item Set \texttt{xPSR} to \texttt{1<<24} (trust us)
+			\item Set \texttt{PC} to the thread's function pointer
+			\item Put input argument into \texttt{R0}
+			\item Put the stack \texttt{16x4} bytes down from \texttt{xPSR}
+			\item Store in order: \texttt{xPSR, PC, LR, R12, R3, R2, R1, R0, R11} through \texttt{R4}
+		\end{itemize}
+\end{enumerate}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{That Seems Complicated}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/ytho.jpg}
+\end{center}
+
+The goal is to make it seem to the chip like the thread has already run.
+
+We are setting up the thread context on the stack just like it would be saved.
+
+If you forgot something (likely) you'll get a hard fault.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{What was I doing again?}
+
+We have been circling around the idea of the context switch a lot so far.
+
+It may make conceptual sense but maybe unclear on how to implement it.\\
+\quad This is what labs 2 and 3 are for.
+
+Context switch is a very hard part of OS development...\\
+\quad And any bug in it will be a huge problem!
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Managing this in a RTOS}
+
+If there are many TCBs to manage, do they go in a list or array? Design decision!
+
+The OS needs its own stack pointer (use \texttt{MSP}).
+
+It also needs to keep track of how many threads exist, what's running now, and how much stack space is available to allocate.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Basic Functionality}
+
+The RTOS needs to be able to:
+
+\begin{itemize}
+	\item Initialize itself
+	\item Create a new thread
+	\item Start running a thread
+	\item Switch between threads
+\end{itemize}
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/fancy.jpg}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Function Prototypes}
+
+\begin{lstlisting}[language=C]
+kernelInit( ... ); // Initialize kernel data and chip settings
+
+osCreateThread( ... ); // Make a new thread and register it with the kernel
+
+kernelStart( ... ); // Run the first thread
+
+osSched( ... ); // Run scheduler (choose new thread to run)
+
+osYield( ... ); // Voluntarily give up the CPU, tell the scheduler to run
+
+\end{lstlisting}
+
+Initialization function: set kernel variables, set interrupt priority, create TCBs, create stack pointers.
+
+Create Thread: get a new stack (fail if no space), initialize the thread stack, update OS variables to track new thread.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Abut Scheduling}
+
+Scheduling is so complex it gets its own section of the course (next one!).
+
+Key question: which thread gets to run when?
+
+In the labs, we use Round Robin until Lab 5.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Terminating a Thread}
+
+In our simple OS a thread that just... ends... will cause a hard fault.
+
+It can be done! Remove the thread from scheduling; deallocate its resources.
+
+That has to happen in a bigger OS (UNIX); otherwise we're leaking memory.
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{To Boldly Go...}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/setcourse.jpg}
+\end{center}
+
+Well then, let's get on to what threads are like in UNIX.
+
+\end{frame}
+
+
+
+\end{document}
+
