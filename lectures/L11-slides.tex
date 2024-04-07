@@ -165,6 +165,293 @@ If it doesn't get the clock signal, it does nothing and saves power.
 \end{frame}
 
 
+\begin{frame}
+\frametitle{RCC Base Address}
+
+\begin{center}
+	\includegraphics[width=0.95\textwidth]{images/rcc-base.png}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{\texttt{RCC\_AHB1ENR}}
+
+What's \texttt{RCC\_AHB1ENR}? AHB is ``Advanced High-Speed Bus''
+
+This is a bus that controls some peripherals including GPIO.
+
+This register controls whether the input has a clock signal. 
+
+Offset is \texttt{0x30}.
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/rcc-ahb.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{GPIO?!}
+
+What is GPIO then? General-Purpose Input/Output
+
+The GPIO system is controlling the voltages on the pins.
+ 
+What's it good for?
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{GPIO Ideas}
+
+Slow digital input -- signal detection, not data transfer.
+
+Slow digital output -- turning things on/off, not data transfer.
+
+Analog input (ADC)
+
+Other fun stuff if needed: ``Alternate Functions''.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{GPIO Organization}
+
+Pins are organized into \alert{ports} of up to 16 pins.
+
+Ports are \texttt{PA*} through \texttt{PC*} on our chip.
+
+Each port is controlled via registers labelled \texttt{GPIOx...}
+
+\begin{center}
+	\includegraphics[width=0.5\textwidth]{images/gpio-chip.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{GPIO Base Addresses}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/gpio-base.png}
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{GPIO Configuration Registers}
+
+\texttt{GPIOx\_MODER}: I/O direction, analog or alternate function
+
+\texttt{GPIOx\_OTYPER}: Output type (push/pull, open-drain)
+
+\texttt{GPIOx\_OSPEEDR}: Speed for update/read data
+
+\texttt{GPIOx\_PUPDR}: Pullup/pulldown resistor enable, regardless of direction
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{What are the Modes?}
+
+The mode register is 32 bits with offset of \texttt{0x00}. 
+
+4 modes are available (2 bits per pin).
+
+\begin{center}
+	\includegraphics[width=\textwidth]{images/gpio-moder.png}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Alternate Functions}
+
+Alternate Functions just mean using one of the manufacturer-specific functions.
+
+To use them, set the \texttt{GPIOx\_AF} registers.
+
+16 AFs per pin are allowed; 4 bits per pin.
+
+Two AF registers per port: LOW and HIGH.
+
+We won't worry about these until we must.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Other Registers}
+
+Other registers exist but we can usually just use them in their reset state.
+
+If you need something, you can always look up what you need it to be.
+
+\begin{center}
+	\includegraphics[width=0.4\textwidth]{images/halfthebattle.jpg}
+\end{center}
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{GPIO Input/Output Registers}
+
+\texttt{GPIOx\_ODR}: Output data register, must be OUTPUT mode.\\
+\quad This is the data! If bit \texttt{j} is 1, the pin \texttt{j} is HIGH.\\
+\quad Read-write.
+
+\texttt{GPIOx\_IDR}: Input data register, must be INPUT mode.\\
+\quad Stores data read by the pins, read-only.
+
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{\texttt{GPIOx\_ODR}}
+
+Offset is \texttt{0x14}.
+
+Only bits 0 to 15 are valid (pins 0 to 15); others are reserved (cannot use).
+
+Used only in output mode -- writing in other modes does nothing.
+
+Write 1 or 0 to write HIGH or LOW on a given pin.\\
+\quad Can read back to know what was written.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{\texttt{GPIOx\_IDR}}
+
+Offset is \texttt{0x10}.
+
+Only bits 0 to 15 are valid (pins 0 to 15); others are reserved (cannot use).
+
+Used only in input mode -- reads in other modes return garbage.
+
+Read-only.
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Basic GPIO Driver}
+
+Very basic GPIO driver: Read PC 13 (user button 1), write to PA5 (LED 2, green).
+
+General plan:
+
+\begin{itemize}
+	\item Define registers and offsets needed
+	\item Create setup functions
+	\item Create read functions for inputs
+	\item Create write functions for outputs
+\end{itemize}
+
+\begin{center}
+	\includegraphics[width=0.3\textwidth]{images/comingtogether.jpg}
+\end{center}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Define Statements}
+
+\begin{lstlisting}[language=C]
+#include <stdint.h>
+#include <stdbool.h>
+
+#define _IDR_OFFSET 0x10
+#define _ODR_OFFSET 0x14
+
+#define _RCC_BASE 0x40023800
+#define _RCC_GPIO_EN_OFFSET 0x30
+#define _GPUI_CLOCK_EN *(uint32_t*) (_RCC_BASE + _RCC_GPIO_EN_OFFSET)
+
+#define _GPIOC_BASE 0x40020800
+#define _GPIOC_MODER *(uint32_t*) (_GPIOC_BASE)
+#define _GPIOC_IDR *(uint16_t) (_GPIOC_BASE + _IDR_OFFSET)
+
+#define _GPIOA_BASE 0x40020000
+#define _GPIOC_MODER *(uint32_t*) (_GPIOA_BASE)
+#define _GPIOC_ODR *(uint16_t) (_GPIOA_BASE + _ODR_OFFSET)
+\end{lstlisting}
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Setup}
+
+\begin{lstlisting}[language=C]
+void setGPIOCInput() {
+  // Enable clock
+  _GPIO_CLOCK_EN |= 1<<2;
+  _GPIOC_MODER &= ~(0x3 << 26);
+}
+
+void setGPIOAOutput() {
+  // Clear it first
+  _GPIOA_MODER &= ~(0x3 << 10);
+  _GPIOA_MODER |= 1 << 10;
+}
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Access}
+
+\begin{lstlisting}[language=C]
+int readGPIOC() {
+  return (_GPIOC_IDR & 1<<13) >> 13;
+}
+
+void writeGPIOA(bool in) {
+  if (in) {
+    _GPIOA_ODR |= 1<<5;
+  } else {
+    _GPIOA_ODR &= ~(1<<5);
+  }
+}
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{User}
+
+\begin{lstlisting}[language=C]
+while( 1 ) {
+  writeGPIOA( !readGPIOC() ); 
+}
+\end{lstlisting}
+
+It's simple, but it does work!
+
+We can take this template and use it to interact with other I/O devices.
+
+But before we leave the topic, maybe you had a different idea of what memory-mapped I/O is...
+
+\end{frame}
+
 
 
 \begin{frame}
