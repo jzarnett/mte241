@@ -96,9 +96,9 @@ After that there will be a protocol for how the devices will communicate\\
 
 
 \begin{frame}
-\frametitle{Quick Review}
+\frametitle{Communication Protocol}
 
-Quick review of polling, interrupts, and DMA.\\
+Our options: polling, interrupts, and DMA.\\
 \quad Not all are equally good options in efficiency terms.
 
 An I/O port represents the connection and may have 4 registers:\\
@@ -141,7 +141,7 @@ There's some sort of interrupt request line (hardware) and when the CPU sees the
 
 Then the interrupt handler is executed to deal with it and clear the signal.
 
-We'll dig into this topic soon!
+We just learned about the implementation of this at the lower levels.
 
 \end{frame}
 
