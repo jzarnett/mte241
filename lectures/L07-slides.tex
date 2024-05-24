@@ -46,7 +46,7 @@ Goals: learn about the stack, the Cortex M's stack pointers, and the Application
 \begin{frame}
 \frametitle{FIFO Behaviour}
 
-Remember that the stack is a FIFO data structure:
+Remember that the stack is a LIFO data structure:
 
 \alert{Push} things on to the stack...
 
@@ -248,7 +248,7 @@ Registers \texttt{R0 - R3} are the ``argument'' and ``result'' registers.\\
 Each register is one of:\\\begin{itemize}
 	\item A 4-byte type (e.g., \texttt{uint\_32})
 	\item A smaller-than-4-byte type (space is wasted)
-	\item A portion of a larger type (e.g., half of a \texttt{uint\_64}
+	\item A portion of a larger type (e.g., half of a \texttt{uint\_64})
 \end{itemize}
 
 
