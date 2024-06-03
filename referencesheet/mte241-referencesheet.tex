@@ -1,0 +1,198 @@
+\documentclass[legalpaper,10pt]{article}
+
+\usepackage{titling}
+\usepackage{listings}
+\usepackage{url}
+\usepackage{setspace}
+\usepackage{subfig}
+\usepackage{sectsty}
+\usepackage{pdfpages}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{relsize}
+\usepackage{amsmath}
+\usepackage{ifsym}
+\usepackage{ulem}
+\usepackage{fancyvrb}
+\usepackage{amsmath,amssymb,amsthm,graphicx,xspace}
+\usepackage[titlenotnumbered,noend,noline]{algorithm2e}
+\usepackage[compact]{titlesec}
+\usepackage{XCharter}
+\usepackage[T1]{fontenc}
+\usepackage[scaled]{beramono}
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata,shapes,trees,matrix,chains,scopes,positioning,calc,patterns}
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=2.5em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{bw} = [rectangle, draw, fill=blue!20, 
+    text width=4em, text centered, rounded corners, minimum height=2em]
+
+\definecolor{namerow}{cmyk}{.40,.40,.40,.40}
+\definecolor{namecol}{cmyk}{.40,.40,.40,.40}
+
+\let\LaTeXtitle\title
+\renewcommand{\title}[1]{\LaTeXtitle{\textsf{#1}}}
+
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf MTE 241: Introduction to Computer Structures \& Real-Time Systems } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #4  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[3]{\handout{#1}{#2}{#3}{Lecture #1}}
+\newcommand{\tuple}[1]{\ensuremath{\left\langle #1 \right\rangle}\xspace}
+
+\addtolength{\oddsidemargin}{-1.000in}
+\addtolength{\evensidemargin}{-0.500in}
+\addtolength{\textwidth}{2.0in}
+\addtolength{\topmargin}{-1.000in}
+\addtolength{\textheight}{1.75in}
+\addtolength{\parskip}{\baselineskip}
+\setlength{\parindent}{0in}
+\renewcommand{\baselinestretch}{1.5}
+\newcommand{\term}{Spring 2015}
+
+\singlespace
+
+\newcommand{\vclass}{MTE 241}
+\newcommand{\vtitle}{Function \& Library Reference}
+%\newcommand{\vpage}{1}
+%\newcommand{\vqcount}{2 }
+\newcommand{\rectangle}[3]{\tikz \draw (0,0) rectangle (#1,#2) node[pos=.5]{#3};}
+\newcommand{\multiline}[2][c]{%
+  \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
+
+\usepackage{tikz}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+ 
+\pagestyle{fancy}
+\usepackage{lastpage}
+\lhead{Instructor: J. Zarnett}
+\chead{}
+\rhead{\bfseries \vtitle: \vclass }
+%\lfoot{}
+\setlength{\parindent}{0cm}
+\setlength{\parskip}{0.3cm}
+
+%\newcommand{\answer}[1]{\fbox{\parbox{.8\linewidth}{\textbf{Answer guide:} \\#1}}}
+%\renewcommand{\answer}[1]{}
+
+\begin{document}
+
+\section*{Function \& Library Reference}
+
+\lstset{numbers=none}
+
+\begin{lstlisting}[language=C]
+void* malloc( int num_bytes );
+void* calloc( size_t num, size_t size );
+void *realloc( void *ptr, size_t new_size );
+void free( void* p );
+int atoi( const char *s ); /* Convert string to int */
+int printf( const char * fmt, ... ); /* %d int, %lu unsigned long, %f double,  %s string, \n newline, ...=args */
+void* memcpy( void *destination, const void *source, size_t num_bytes ); /* Returns destination */
+void *memset( void *mem, int value, size_t num_bytes ); /* Set memory to 0 */
+size_t strlen( const char * string ); /* returns length of null-terminated string, not counting the terminator */
+int strncmp ( const char * str1, const char * str2, size_t max_size ); /* return 0 if strings equal */
+\end{lstlisting}
+
+\subsubsection*{Files}
+\begin{lstlisting}[language=C]
+int open( const char *filename, int flags );  /* Returns a file descriptor if successful, -1 on error */
+ssize_t read( int file_descriptor, void *buffer, size_t count ); /* Returns number of bytes read */
+ssize_t write( int file_descriptor, const void *buffer, size_t count ); /* Returns number of bytes written */
+int rename( const char *old_filename, const char *new_filename ); /* Returns 0 on success */
+int close( int file_descriptor ); 
+FILE* fopen( const char *filename, const char *mode );
+int fclose( FILE* f );
+size_t fread(void *restrict ptr, size_t size, size_t nmemb, FILE *restrict stream);
+size_t fwrite(const void *restrict ptr, size_t size, size_t nmemb, FILE *restrict stream);
+int fprintf( FILE* f, const char* format, ... ); /* Arguments go in the ...  */
+int fscanf( FILE* f, const char* format, ... ); /* Arguments go in the ...  */
+int fileno( FILE* f ); /* Convert FILE* to file descriptor */
+int fseek ( FILE * f, long int offset, int origin ); /*SEEK_SET from file start. SEEK_CUR from current loc.*/
+int remove( const char* filename );
+\end{lstlisting}
+
+When opening a file with \texttt{fopen()}, the options are:\\
+\begin{tabular}{l|l}
+	\textbf{Mode} & \textbf{Meaning} \\ \hline
+	\texttt{r} & Open the file read-only. \\ \hline
+	\texttt{w} & Open the file for writing (create if needed) \\ \hline
+	\texttt{a} & Open the file for appending (create if needed) \\ \hline
+	\texttt{r+} & Open the file for reading, from the start \\ \hline
+	\texttt{w+} & Open the file for writing (overwrite) \\ \hline
+	\texttt{a+} & Open the file for reading and writing, append if exists \\
+\end{tabular}
+
+
+For \texttt{open()} the following flags may be used for the \texttt{flags} parameter, and can be combined with \texttt{|} (bitwise OR):\\
+\begin{tabular}{l|l}
+	\textbf{Flag} & \textbf{Meaning} \\ \hline
+	\texttt{O\_RDONLY} & Open the file read-only \\ \hline
+	\texttt{O\_WRONLY} & Open the file write-only \\ \hline
+	\texttt{O\_RDWR} & Open the file for both reading and writing \\ \hline
+	\texttt{O\_APPEND} & Append information to the end of the file \\ \hline
+	\texttt{O\_TRUNC} & Initially clear all data from the file \\ \hline
+	\texttt{O\_CREAT} & Create the file \\ \hline	
+	\texttt{O\_EXCL} & If used with \texttt{O\_CREAT}, the caller MUST create the file; if the file exists it will fail \\ 	
+\end{tabular}
+
+
+\subsubsection*{Process Management}
+
+\begin{lstlisting}[language=C]
+pid_t fork( );
+pid_t wait( int* status );
+pid_t waitpid( pid_t pid, int *status, int options ); /* 0 for options fine */
+void exit( int status );
+\end{lstlisting}
+
+\subsubsection*{Threads and Concurrency}
+
+\begin{lstlisting}[language=C]
+pthread_create( pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)( void * ), void *arg );
+pthread_join( pthread_t thread, void **returnValue );
+pthread_detach( pthread_t thread );
+pthread_cancel( pthread_t thread );
+pthread_testcancel( ); /* If the thread is cancelled, this function does not return (thread terminated) */
+pthread_setcanceltype( int type, int *oldtype ); /* PTHREAD_CANCEL_DEFERRED or PTHREAD_CANCEL_ASYNCHRONOUS */
+pthread_cleanup_push( void (*routine)(void*), void *argument ); /* Register cleanup handler, with argument */ 
+pthread_cleanup_pop( int execute ); /* Run if execute is non-zero */
+pthread_exit( void *value );
+
+pthread_mutex_init( pthread_mutex_t *mutex, pthread_mutexattr_t *attributes );
+pthread_mutex_lock( pthread_mutex_t *mutex );
+pthread_mutex_trylock( pthread_mutex_t *mutex ); /* Returns 0 on success */
+pthread_mutex_unlock( pthread_mutex_t *mutex );
+pthread_mutex_destroy( pthread_mutex_t *mutex );
+pthread_rwlock_init( pthread_rwlock_t * rwlock, pthread_rwlockattr_t * attr );
+pthread_rwlock_rdlock( pthread_rwlock_t * rwlock );
+pthread_rwlock_tryrdlock( pthread_rwlock_t * rwlock );
+pthread_rwlock_wrlock( pthread_rwlock_t * rwlock );
+pthread_rwlock_trywrlock( pthread_rwlock_t * rwlock );
+pthread_rwlock_unlock( pthread_rwlock_t * rwlock );
+pthread_rwlock_destroy( pthread_rwlock_t * rwlock );
+
+sem_init( sem_t* semaphore, int shared, int initial_value); /* 0 for shared OK */
+sem_destroy( sem_t* semaphore );
+sem_wait( sem_t* semaphore );
+sem_trywait( semt_t* semaphore );
+sem_post( sem_t* semaphore );
+\end{lstlisting}
+
+\end{document}
