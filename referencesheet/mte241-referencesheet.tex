@@ -94,7 +94,7 @@
 \begin{document}
 
 \subsubsection*{C Basics}
-
+\vspace{-1em}
 \lstset{numbers=none}
 
 \begin{lstlisting}[language=C]
@@ -112,6 +112,7 @@ int strncmp ( const char * str1, const char * str2, size_t max_size ); /* return
 \vspace{-1em}
 
 \subsubsection*{Files}
+\vspace{-1em}
 \begin{lstlisting}[language=C]
 int open( const char *filename, int flags );  /* Returns a file descriptor if successful, -1 on error */
 ssize_t read( int file_descriptor, void *buffer, size_t count ); /* Returns number of bytes read */
@@ -127,6 +128,11 @@ int fscanf( FILE* f, const char* format, ... ); /* Arguments go in the ...  */
 int fileno( FILE* f ); /* Convert FILE* to file descriptor */
 int fseek ( FILE * f, long int offset, int origin ); /*SEEK_SET from file start. SEEK_CUR from current loc.*/
 int remove( const char* filename );
+
+void* mmap( void* address, size_t length, int protection, int flag, int fd, off_t offset ); /* address = NULL */
+int mprotect( void* address, size_t length, int prot ); /* PROT_NONE, PROT_READ, PROT_WRITE, PROT_EXECUTE */
+int msync( void* address, size_t length, int flags ); /* Use MS_SYNC for flags */
+int munmap( void* address, size_t length );
 \end{lstlisting}
 
 When opening a file with \texttt{fopen()}, the options are:\\
@@ -154,18 +160,14 @@ For \texttt{open()} the following flags may be used for the \texttt{flags} param
 \end{tabular}
 
 
-\subsubsection*{Process Management}
-
+\subsubsection*{Processes, Threads, Concurrency}
+\vspace{-1em}
 \begin{lstlisting}[language=C]
 pid_t fork( );
 pid_t wait( int* status );
 pid_t waitpid( pid_t pid, int *status, int options ); /* 0 for options fine */
 void exit( int status );
-\end{lstlisting}
 
-\subsubsection*{Threads and Concurrency}
-
-\begin{lstlisting}[language=C]
 pthread_create( pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)( void * ), void *arg );
 pthread_join( pthread_t thread, void **returnValue );
 pthread_detach( pthread_t thread );
