@@ -177,7 +177,7 @@ The original process is suspended already, so why not leave it in that state?
 \begin{frame}
 \frametitle{Short-Term Scheduling: When?}
 
-System calls like \texttt{fork} and even signalling on a semaphore may also provide good opportunities to switch from one process to another. 
+System calls like \texttt{fork} may also provide good opportunities to switch from one process to another. 
 
 By invoking the operating system (system call), the caller is suspended.
 
@@ -190,7 +190,6 @@ So it is necessary to decide what process executes next.
 
 We acknowledged this in the discussion of \texttt{fork} by saying it was not known if the parent or child would execute next. 
 
-Semaphores: we do not even know which of the processes waiting on the semaphore will be the one to receive the signal. 
 
 \begin{center}
 	\includegraphics[width=0.3\textwidth]{images/canadianstandoff.jpg}
