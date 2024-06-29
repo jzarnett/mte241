@@ -96,9 +96,7 @@ This deadline-based approach is subject to a problem that very much resembles pr
 
 \begin{frame}
 \frametitle{Deadline Interchange}
-Suppose a task $A$ has locked a mutex and then a new task $B$ arrives that also needs that mutex and has a sooner deadline than $A$. 
-
-Task $A$ would therefore be preempted in favour of $B$, at least until $B$ gets blocked. 
+Suppose a task $A$ holds a resource and then a new task $B$ arrives that also needs that resource, but has a sooner deadline than $A$. 
 
 If there are other tasks $C, D, E$... that also want this resource, $A$ could be waiting a long time to proceed.
 
