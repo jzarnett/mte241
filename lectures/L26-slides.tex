@@ -30,11 +30,11 @@
 
 \begin{frame}
 	\frametitle{Mutual Exclusion through Messages}
-	There are additional desirable properties that will be used to evaluate any solution:
+	There are additional properties that will be used to evaluate any solution:
 	\begin{itemize}
 		\item When no thread is in the critical section, a thread that requests access should be allowed to enter right away.
 		\item No assumptions are made about what the threads will do or the number of processors in the system.
-		\item A thread remains inside the critical section for a finite time only.
+		\item A thread needs a way to indicate it's exiting the critical section.
 	\end{itemize}
 
 
@@ -143,7 +143,7 @@
 
 	He described a data structure that can be used to solve synchronization problems via messages.
 
-	Although the version we use now is not exactly the same as the original description, even 50 years later, the core idea is unchanged.
+	Although the version we use now is not exactly the same as the original description, even 60 years later, the core idea is unchanged.
 
 
 \end{frame}
