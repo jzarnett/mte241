@@ -268,54 +268,55 @@ CPUs are a lot faster than memory and it is best if we do not keep them waiting.
 \end{frame}
 
 \begin{frame}
-\frametitle{Doing Lines}
+\frametitle{Variable Size?}
 
-Caches do not have to operate on pages. 
-
-They can operate on anything, but they are typically blocks of a given size. 
+Caches can operate on data of any size, the CPU's operate on blocks of fixed size. 
 
 An entry in a cache is often called a \alert{line}. 
 
-We will assume that a cache line maps nicely to a page.
+Assume that a cache line always corresponds to a fixed-size block of memory.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Bring Me Pictures of Spiderman!}
+
+Let's imagine that our program wants to read some data:\\
+\quad e.g., \texttt{ *rate = 1.13; }
+
+The variable \texttt{rate} is a pointer and it contains an address...\\
+\quad The CPU instruction looks like ``store 1.13 in address \texttt{0x1234ABCD}''.
 
 \end{frame}
 
 \begin{frame}
 \frametitle{Battleship Sunk!}
 
-As discussed, the CPU generates a memory address for a read/write operation. 
-
-The address will be mapped to a page; ideally that page is in the cache.
+When that write is issued, is the block containing that data already in the cache?
 
 \begin{center}
 	\includegraphics[width=0.5\textwidth]{images/battleship.jpg}
 \end{center}
 
-If the requested page is, in fact,  in the cache, we call that a cache \alert{hit}.
+If the requested memory block is, in fact,  in the cache, we call that a cache \alert{hit}.
+
+If it is not found in the cache, it is considered a cache \alert{miss}. 
 
 \end{frame}
 
 \begin{frame}
 \frametitle{Please Play Again}
 
-If the page is not found in the cache, it is considered a cache \alert{miss}. 
+In case of a miss, we must go to memory, a slow operation. 
 
-In case of a miss, we must load the page from memory, a slow operation. 
 
-A page miss is also called a \alert{page fault}.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Accuracy}
-
-The percentage of the time  a page is found in the cache is called the \alert{hit ratio}.
+The percentage of the time a block is found in the cache is called the \alert{hit ratio}.
 
 \begin{center}
 	\includegraphics[width=0.4\textwidth]{images/hitratio.jpg}
 \end{center}
 
-We can calculate the effective access time if we have an estimate of the hit ratio.
+We can calculate the \alert{effective access time} if we have an estimate of the hit ratio.
 
 \end{frame}
 
@@ -330,8 +331,8 @@ Effective Access Time = $h \times t_{c} + (1-h) \times t_{m}$
 
 Where:\\
 \quad $h$ is the hit ratio.\\
-\quad $t_{c}$ is the time required to load a page from cache.\\
-\quad $t_{m}$ is the time to load a page from memory. 
+\quad $t_{c}$ is the time required to load a block from cache.\\
+\quad $t_{m}$ is the time to load a block from memory. 
 
 
 Of course, we would like the hit ratio to be as high as possible.\\
@@ -360,6 +361,8 @@ Intel 64-bit CPUs tend to have L1, L2, and L3 caches.\\
 \includegraphics[width=0.9\textwidth]{images/caches.png}
 \end{center}
 
+Note: blocks are not at all to scale.
+
 The effective access time formula needs to be updated and expanded.
 
 \end{frame}
@@ -369,36 +372,33 @@ The effective access time formula needs to be updated and expanded.
 
 If we have a miss in the L1 cache, the L2 cache is checked. 
 
-If the L2 cache contains the desired page, it will be copied to the L1 cache and sent to the CPU. 
+If the L2 cache contains the desired block, it will be copied to the L1 cache and sent to the CPU. 
 
 If it is not in L2, then L3 is checked. 
 
 If it is not there either, it is in main memory and will be retrieved from there and copied to the in-between levels on its way to the CPU. 
 
-Because caches have limited size, we have to manage this storage carefully.
-
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Page Replacement Algorithms}
+\frametitle{Replacement Algorithms}
 
-Whenever a page fault occurs, the operating system needs to choose which page to \alert{evict} from the cache to make space for the new one. 
+Whenever a miss occurs, we have to choose which block to \alert{evict} from the cache to make space for the new one. 
 
 This assumes that the cache is full, which it likely is except at system startup. 
 
-We could, of course, just select a random page...\\
+We could, of course, just select a random one...\\
 \quad We should do this task more intelligently, if we can.
 
 \end{frame}
 
 
 \begin{frame}
-\frametitle{Page Replacement Algorithms}
+\frametitle{Block Replacement Algorithms}
 To make an intelligent decision about what sort of strategy to choose, we need to know a few things about how data is accessed in a system.
 
-
-
+Here's some patterns about usage:\\
 \begin{enumerate}
 	\item The 90/10 rule.
 	\item The principle of \alert{temporal locality}. 
@@ -417,6 +417,18 @@ The sum variable is accessed repeatedly, and the fact that it was recently acces
 The array being accessed at index $i$ now means it is likely that the array at index $i+1$ is likely to be accessed soon.
 
 \end{frame}
+
+\begin{frame}
+\frametitle{Managing Cache}
+
+Managing the cache efficiently is a complicated subject and we'll want to talk about it more when we get to the memory unit of the course.
+
+Some systems have $> 1$ cache -- e.g., separate ones for instructions and data.
+
+Cortex M4 has a data cache of 8 $\times$ 128 bits. What about instructions?
+
+\end{frame}
+
 
 \begin{frame}
 \frametitle{Cortex M4 Flash Frames}
@@ -464,15 +476,6 @@ Without pre-fetch: get instructions, do them, get next instructions.
 With: get instructions, do them + get next instructions in parallel.
 
 Benefit: avoid waiting for next instructions after we're done executing.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Split Cache: Instructions and Data}
-
-Often instructions and data have their own caches.
-
-Cortex M4 has a data cache of 8 $\times$ 128 bits.
 
 \end{frame}
 
