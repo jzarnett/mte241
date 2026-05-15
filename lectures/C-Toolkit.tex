@@ -4,7 +4,7 @@
 
 \section*{Our C Toolkit}
 
-This is a programming course, after all, and we will be programming in C. There's a baseline assumption that you have experience with a C-like language such as \Cpp. While the purpose of this class it not to teach you how to program in C, past experience  suggests that it is helpful to cover a number of key concepts and conventions in C programming to make sure that everyone is on the same page, and to streamline explanation of future code examples. It is also probably desirable to put all of these things together in the same place for quick reference.
+This is a programming course, after all, and we will be programming in C. There's a baseline assumption that you have experience with a C-like language such as \Cpp. While the purpose of this class is not to teach you how to program in C, past experience  suggests that it is helpful to cover a number of key concepts and conventions in C programming to make sure that everyone is on the same page, and to streamline explanation of future code examples. It is also probably desirable to put all of these things together in the same place for quick reference.
 
 C is a procedural language: that is to say it has functions (but that doesn't make it a functional programming language). It is not Object-Oriented or anything like it. We will write functions and functions work as they do in all C-like languages. They have a return type, function name, and then a list of arguments (or parameters) in parenthesis.
 
@@ -19,7 +19,7 @@ Header files, whether our own or for provided libraries are imported into the pr
 #include <stdlib.h>
 \end{lstlisting}
 
-Many of the functions we wish to call are included in these header files, but there are many many more. If you are attempting to use a library function and the compiler says it doesn't know what you mean, then first check your spelling, as well as the number of parameters... and then check to be sure you have included the correct header file(s). If you get a compiler warning about ``implicit declaration'' of a function it means that a header is missing but the compiler can guess about what you want. You should still fix this by including the right header, which you might have to google.
+Many of the functions we wish to call are included in these header files, but there are many many more. If you are attempting to use a library function and the compiler says it doesn't know what you mean, then first check your spelling, as well as the number of parameters... and then check to be sure you have included the correct header file(s). If you get a compiler warning about ``implicit declaration'' of a function it means that a header is missing but the compiler can guess about what you want. You should still fix this by including the right header, which you might have to Google.
 
 C has no \texttt{bool} type by default. In many contexts an \texttt{int} is used where 0 represents false and 1 represents true. Or you can include the header \texttt{stdbool.h}  which provides you the type as well as the explicit values of true and false.
 
@@ -146,7 +146,7 @@ Global variables are variables declared outside of any function. Although they c
 
 In C, heap memory is allocated in a very simple way: you ask for the amount of memory that you want. The function for this is \texttt{malloc()} and it takes one parameter -- the number of bytes of memory that you want. So if we want to allocate an integer on the heap, we need to call \texttt{malloc()} and request the number of bytes that correspond to an \texttt{int}. But how many bytes is that?
 
-You may think the answer is 4 bytes, but a quick look at the C standard says that while there are are exact sizes for some types, other types have only a minimum size. The rest is implementation specific. That is, it can vary from one system to another. Yikes! Fortunately we have \texttt{sizeof}, which ask the compiler to help us out here and substitute in the correct size where it is needed. So we would call \texttt{malloc()} with the argument \texttt{sizeof( int )}. At run time, the correct amount of memory will be requested.
+You may think the answer is 4 bytes, but a quick look at the C standard says that while there are exact sizes for some types, other types have only a minimum size. The rest is implementation specific. That is, it can vary from one system to another. Yikes! Fortunately we have \texttt{sizeof}, which ask the compiler to help us out here and substitute in the correct size where it is needed. So we would call \texttt{malloc()} with the argument \texttt{sizeof( int )}. At run time, the correct amount of memory will be requested.
 
 This is also very helpful for when you want to allocate a structure. Instead of needing to work out the size yourself (well, this is three \texttt{double}s, and a \texttt{double} is 8 bytes...), \texttt{sizeof( point\_t )} will allocate the correct size... as a nice bonus, if ever the definition of the structure is changed the amount of memory requested is updated automatically.
 
@@ -269,11 +269,11 @@ int * array = malloc( 10 * sizeof( int ) );
 memset( array, 0, 10 * sizeof( int ) );
 \end{lstlisting}
 
-There are no automatic bounds checking for arrays, and C will gladly let you try to read the 12th element of a capacity-10 array. You will either read garbage or perhaps crash your program. When iterating over an array, you will need to know in advance how long the array is so you know when to terminate the loop. For that reason, when an array is passed as an argument to a function, another variable is used to specify the length.
+There is no automatic bounds checking for arrays, and C will gladly let you try to read the 12th element of a capacity-10 array. You will either read garbage or perhaps crash your program. When iterating over an array, you will need to know in advance how long the array is so you know when to terminate the loop. For that reason, when an array is passed as an argument to a function, another variable is used to specify the length.
 
 \paragraph{Strings.}
 
-As far as C is concerned, a string is just a character array (and is generally just \texttt{char*}. In C, a string is of arbitrary length and terminates with a byte of zero (or if you prefer, \texttt{NULL}). This is distinct from the character ``0'' which has a nonzero value. If you put a string literal in some code like \texttt{"Hello World"} then the compiler will graciously add the null-terminator for you. If you are composing a string, however, then you need to remember to add it (and the char for it is \texttt{'\textbackslash0'}). And either way you should also remember to make room for the null terminator when allocating memory or calculating the length of a string.
+As far as C is concerned, a string is just a character array (and is generally just \texttt{char*}). In C, a string is of arbitrary length and terminates with a byte of zero (or if you prefer, \texttt{NULL}). This is distinct from the character ``0'' which has a nonzero value. If you put a string literal in some code like \texttt{"Hello World"} then the compiler will graciously add the null-terminator for you. If you are composing a string, however, then you need to remember to add it (and the char for it is \texttt{'\textbackslash0'}). And either way you should also remember to make room for the null terminator when allocating memory or calculating the length of a string.
 
 \paragraph{Function Convention.}
 
@@ -311,7 +311,7 @@ int x = -25;
 printf("The value of x is %d\n", x);
 \end{lstlisting}
 
-Results in printing to the console \texttt{The value of x is -25} (and a newline character after it). In this example the format specifier \texttt{\%d} is used for a signed integer (or \texttt{\%i} would do the same). There are different format specifiers for different types: unsigned integers, floating point numbers, scientific notation, even a string. There are many options but we do not wish to belabour the point by putting them all here. But be sure you chose the right one: if you have a \texttt{double} and you try to print it with an \texttt{int} format specifier, it will look like the data contains garbage (yes, I have helped someone debug this).
+Results in printing to the console \texttt{The value of x is -25} (and a newline character after it). In this example the format specifier \texttt{\%d} is used for a signed integer (or \texttt{\%i} would do the same). There are different format specifiers for different types: unsigned integers, floating point numbers, scientific notation, even a string. There are many options but we do not wish to belabour the point by putting them all here. But be sure you choose the right one: if you have a \texttt{double} and you try to print it with an \texttt{int} format specifier, it will look like the data contains garbage (yes, I have helped someone debug this).
 
 Or another example:
 \begin{lstlisting}[language=C]
@@ -340,7 +340,7 @@ char* buffer = malloc( BUFFER_SIZE );
 
 When the program is compiled, the compiler replaces \texttt{BUFFER\_SIZE} everywhere with its definition. If used in many places, changing the definition in the central location saves you from having to change it everywhere.
 
-There is a small potential pitfall in this though; the compiler is VERY literal about how it makes the replacement. So if the directive is \texttt{\#define VALUE 2 * 25 + 4}, then you will get the wrong answer if that's later used in something like \texttt{int size = VALUE * 2;}, because the compiler will make it \texttt{int size = 2 * 25 + 4 * 2;} for a total size of 58 rather than 108. This can be avoided by putting parenthesis \texttt{\#define VALUE (2 * 25 + 4)}. Because BEDMAS.
+There is a small potential pitfall in this though; the compiler is VERY literal about how it makes the replacement. So if the directive is \texttt{\#define VALUE 2 * 25 + 4}, then you will get the wrong answer if that's later used in something like \texttt{int size = VALUE * 2;}, because the compiler will make it \texttt{int size = 2 * 25 + 4 * 2;} for a total size of 58 rather than 108. This can be avoided by putting parentheses \texttt{\#define VALUE (2 * 25 + 4)}. Because BEDMAS.
 
 \paragraph{Main and Arguments.}
 A program begins at the start of \texttt{main} and the signature is as follows:
